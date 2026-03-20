@@ -17,5 +17,6 @@ class BundleAccessLinkTest < ActiveSupport::TestCase
 
     assert_equal bundle.id, payload[:bundle_id]
     assert_equal bundle.slug, payload[:slug]
+    assert payload[:expires_at].future?
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_19_000200) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_19_000300) do
   create_table "bundle_assets", force: :cascade do |t|
     t.integer "bundle_id", null: false
     t.string "path", null: false
@@ -22,6 +22,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_19_000200) do
     t.datetime "updated_at", null: false
     t.index ["bundle_id", "path"], name: "index_bundle_assets_on_bundle_id_and_path", unique: true
     t.index ["bundle_id"], name: "index_bundle_assets_on_bundle_id"
+  end
+
+  create_table "bundle_uploads", force: :cascade do |t|
+    t.string "slug", null: false
+    t.string "source_kind", null: false
+    t.string "original_filename"
+    t.string "access_mode", null: false
+    t.string "password_digest"
+    t.boolean "replace_existing", default: false, null: false
+    t.string "ingest_key", null: false
+    t.string "status", default: "pending", null: false
+    t.text "error_message"
+    t.bigint "byte_size", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_bundle_uploads_on_slug"
+    t.index ["status"], name: "index_bundle_uploads_on_status"
   end
 
   create_table "bundle_views", force: :cascade do |t|

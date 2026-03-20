@@ -26,6 +26,11 @@ Rails.application.routes.draw do
   constraints HostConstraint.new(public_host) do
     namespace :public, path: "/" do
       root "home#show", as: :root
+      post ":slug/access", to: "access#create", as: :bundle_access
+      get ":slug/raw", to: "bundles#raw", as: :raw_bundle
+      get ":slug/download", to: "bundles#download", as: :download_bundle
+      get ":slug/*asset_path", to: "bundles#asset", as: :bundle_asset
+      get ":slug", to: "bundles#show", as: :bundle
     end
   end
 

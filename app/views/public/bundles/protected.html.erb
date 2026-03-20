@@ -1,0 +1,24 @@
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+
+<div class="page-centered">
+  <div class="centered-card wide">
+    <h1 style="margin-bottom: 0.25rem;"><%= @bundle.title %></h1>
+    <p class="text-muted" style="margin-bottom: 1.25rem;">
+      This bundle is protected. Enter the shared password or use a valid expiring link.
+    </p>
+
+    <% if @access_message.present? %>
+      <p class="text-muted" style="margin-bottom: 1rem; color: var(--color-danger);">
+        <%= @access_message %>
+      </p>
+    <% end %>
+
+    <%= form_with url: public_bundle_access_path(slug: @bundle.slug), method: :post do %>
+      <div style="display: grid; gap: 0.75rem;">
+        <label for="password">Shared password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" style="width: 100%; font: inherit; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 0.75rem 0.9rem;">
+        <button class="btn btn-primary btn-full" type="submit">Open bundle</button>
+      </div>
+    <% end %>
+  </div>
+</div>

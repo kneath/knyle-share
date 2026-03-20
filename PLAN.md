@@ -488,9 +488,9 @@ Rules:
 
 Task list:
 
-- [ ] Build the public host controllers
-- [ ] Implement password gating, viewer sessions, signed-link verification, and presentation-specific rendering
-- [ ] Record analytics for document-level views only
+- [x] Build the public host controllers
+- [x] Implement password gating, viewer sessions, signed-link verification, and presentation-specific rendering
+- [x] Record analytics for document-level views only
 
 Goal:
 
@@ -512,7 +512,7 @@ Definition of done:
 
 Task list:
 
-- [ ] Implement `BundleUpload`
+- [x] Implement `BundleUpload`
 - [ ] Implement S3 ingest flow, archive processing, classification, and replacement
 - [ ] Persist published asset records and revision changes
 

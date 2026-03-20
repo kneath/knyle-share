@@ -1,0 +1,29 @@
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+
+<div class="page">
+  <main>
+    <div class="container">
+      <div class="page-title">
+        <h1><%= @bundle.title %></h1>
+      </div>
+
+      <div class="card">
+        <ul class="bundle-list">
+          <% @assets.each do |asset| %>
+            <li>
+              <a class="bundle-item" href="<%= public_bundle_asset_path(slug: @bundle.slug, asset_path: asset.path, access: params[:access]) %>">
+                <div>
+                  <div class="bundle-name"><%= public_bundle_file_name(asset) %></div>
+                  <div class="bundle-slug mono"><%= asset.path %></div>
+                </div>
+                <div class="bundle-stats">
+                  <div><%= public_bundle_size_label(asset.byte_size) %></div>
+                </div>
+              </a>
+            </li>
+          <% end %>
+        </ul>
+      </div>
+    </div>
+  </main>
+</div>

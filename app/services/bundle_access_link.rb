@@ -7,7 +7,8 @@ class BundleAccessLink
   }.freeze
 
   def self.generate(bundle:, expires_in:)
-    verifier.generate({ bundle_id: bundle.id, slug: bundle.slug }, expires_in:, purpose: PURPOSE)
+    expires_at = Time.current + expires_in
+    verifier.generate({ bundle_id: bundle.id, slug: bundle.slug, expires_at: expires_at.iso8601 }, expires_in:, purpose: PURPOSE)
   end
 
   def self.verify(token)
@@ -16,7 +17,8 @@ class BundleAccessLink
 
     {
       bundle_id: payload[:bundle_id] || payload["bundle_id"],
-      slug: payload[:slug] || payload["slug"]
+      slug: payload[:slug] || payload["slug"],
+      expires_at: Time.iso8601(payload[:expires_at] || payload["expires_at"])
     }
   end
 

@@ -1,0 +1,14 @@
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+
+<div class="page-centered">
+  <div class="centered-card wide">
+    <h1 style="margin-bottom: 0.25rem;"><%= @bundle.title %></h1>
+    <p class="text-muted" style="margin-bottom: 1.5rem;">
+      <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
+    </p>
+
+    <a class="btn btn-primary btn-full" href="<%= public_download_bundle_path(slug: @bundle.slug, access: params[:access]) %>">
+      Download file
+    </a>
+  </div>
+</div>
