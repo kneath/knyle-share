@@ -535,9 +535,9 @@ Definition of done:
 
 Task list:
 
-- [ ] Add `ApiToken`
-- [ ] Implement upload, metadata, slug check, and signed-link endpoints
-- [ ] Lock down token auth and rate limiting
+- [x] Add `ApiToken`
+- [x] Implement upload, metadata, slug check, and signed-link endpoints
+- [x] Lock down token auth and rate limiting
 
 Goal:
 
@@ -558,10 +558,10 @@ Definition of done:
 
 Task list:
 
-- [ ] Add `render.yaml`
-- [ ] Document env vars, Render disk setup, custom domains, AWS S3 setup, and first-run claim flow
-- [ ] Add production config for HTTPS, host authorization, and the health endpoint
-- [ ] Expand system tests for the highest-risk deploy and auth flows
+- [x] Add `render.yaml`
+- [x] Document env vars, Render disk setup, custom domains, AWS S3 setup, and first-run claim flow
+- [x] Add production config for HTTPS, host authorization, and the health endpoint
+- [x] Expand system tests for the highest-risk deploy and auth flows
 
 Goal:
 

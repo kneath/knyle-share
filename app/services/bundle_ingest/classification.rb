@@ -1,8 +1,6 @@
 require "pathname"
 
 module BundleIngest
-  class ClassificationError < StandardError; end
-
   Classification = Data.define(:presentation_kind, :source_kind, :entry_path, :paths) do
     def static_site?
       presentation_kind == "static_site"

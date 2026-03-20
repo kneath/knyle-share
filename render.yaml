@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: knyle-share
+    runtime: ruby
+    plan: starter
+    buildCommand: bundle install && bundle exec rails assets:precompile
+    startCommand: bundle exec rails db:prepare && bundle exec puma -C config/puma.rb
+    healthCheckPath: /up
+    disk:
+      name: knyle-share-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: RAILS_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /var/data/production.sqlite3
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: RAILS_MAX_THREADS
+        value: "3"
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: ADMIN_HOST
+        sync: false
+      - key: PUBLIC_HOST
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false

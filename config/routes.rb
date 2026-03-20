@@ -13,6 +13,16 @@ Rails.application.routes.draw do
       get "auth/github/callback", to: "sessions#create", as: :github_callback
       get "auth/failure", to: "sessions#failure", as: :auth_failure
       post "logout", to: "sessions#destroy", as: :logout
+      namespace :api do
+        namespace :v1 do
+          get "bundles/availability", to: "bundles#availability"
+          get "bundles/:slug", to: "bundles#show", as: :bundle
+          post "bundles/:slug/links", to: "bundle_links#create", as: :bundle_links
+          post "uploads", to: "uploads#create", as: :uploads
+          put "uploads/:id", to: "uploads#update", as: :upload
+          post "uploads/:id/process", to: "uploads#process_upload", as: :process_upload
+        end
+      end
       get "bundles", to: "bundles#index", as: :bundles
       get "bundles/:id", to: "bundles#show", as: :bundle
       patch "bundles/:id/status", to: "bundles#update_status", as: :bundle_status

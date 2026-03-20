@@ -63,6 +63,16 @@ module BundleIngest
       )
     end
 
+    def presign_put(key:, content_type:, expires_in: 15.minutes)
+      Aws::S3::Presigner.new(client:).presigned_url(
+        :put_object,
+        bucket:,
+        key:,
+        content_type:,
+        expires_in:
+      )
+    end
+
     def delete(key:)
       client.delete_object(bucket:, key:)
     end

@@ -7,7 +7,10 @@ Current implemented slice:
 - admin/public host split with host-constrained routing
 - first-run setup validation
 - GitHub OAuth admin claim and sign-in
-- placeholder admin bundle screens based on the prototype
+- real admin bundle management
+- public bundle delivery with password and signed-link access
+- upload processing and publish pipeline
+- private API for the future CLI
 
 ## Requirements
 
@@ -192,7 +195,10 @@ The current tests cover:
 
 - `Installation`
 - `SetupValidation`
-- the bootstrap and admin-claim flow
+- admin auth and bundle management
+- public bundle delivery
+- upload ingest and replacement
+- private API token auth and upload processing
 
 ## Useful Endpoints
 
@@ -206,6 +212,7 @@ Production is currently set up for SQLite on a persistent disk plus S3 object st
 
 Relevant production env vars:
 
+- `SECRET_KEY_BASE`
 - `ADMIN_HOST`
 - `PUBLIC_HOST`
 - `DATABASE_PATH` optional, defaults to `storage/production.sqlite3`
@@ -219,3 +226,63 @@ Relevant production env vars:
 The current implementation expects the S3 bucket to be reachable from the app and the GitHub OAuth callback to point at the admin host.
 
 For production, keep using real environment variables in Render rather than a repo-local `.env` file.
+
+## Render Deploy
+
+This repo now includes [render.yaml](/Users/kneath/code/kneath/knyle-share/render.yaml) for the default deployment shape:
+
+- one Ruby web service
+- one persistent disk mounted at `/var/data`
+- SQLite at `/var/data/production.sqlite3`
+- one Puma process
+- `/up` as the health check
+
+Recommended deploy flow:
+
+1. Create the AWS S3 bucket and IAM credentials.
+2. Create the GitHub OAuth app.
+3. In Render, create a new Blueprint service from this repo.
+4. Set the required env vars:
+   - `ADMIN_HOST`
+   - `PUBLIC_HOST`
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_REGION`
+   - `S3_BUCKET`
+   - `GITHUB_CLIENT_ID`
+   - `GITHUB_CLIENT_SECRET`
+5. Attach the persistent disk.
+6. Add two custom domains to the same Render service:
+   - one admin domain, for example `admin.example.com`
+   - one public domain, for example `share.example.com`
+7. Update the GitHub OAuth app to use the production admin domain:
+   - Homepage URL: `https://ADMIN_HOST`
+   - Callback URL: `https://ADMIN_HOST/auth/github/callback`
+8. Deploy.
+9. Visit the admin host and run the first-run setup validation before claiming the admin account.
+
+Notes:
+
+- `SECRET_KEY_BASE` is generated automatically by `render.yaml`.
+- Keep `WEB_CONCURRENCY=1` with SQLite on a single Render disk.
+- Both custom domains should point at the same Render web service. Host-constrained routes split admin and public behavior inside the app.
+
+## API Tokens
+
+The private API uses Bearer tokens, not admin browser sessions.
+
+To create a token locally or on a deployed console:
+
+```sh
+bundle exec rails runner 'api_token, plaintext_token = ApiToken.issue!(label: "CLI"); puts plaintext_token'
+```
+
+Store the printed token immediately. Only the digest is saved in the database.
+
+Use it like this:
+
+```sh
+curl \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  "https://ADMIN_HOST/api/v1/bundles/availability?slug=example-bundle"
+```
