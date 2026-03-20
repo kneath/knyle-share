@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knyle Share Publish"
+  short_description: "Publish files and folders with Knyle Share"
+  default_prompt: "Use $knyle-share-publish to share a local file or folder through Knyle Share."
