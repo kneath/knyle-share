@@ -1,7 +1,37 @@
 .claude/
+.DS_Store
+
+# Local environment files
 .env
 .env.*
 !.env.example
+
+# Ruby / Bundler
+/.bundle
+/vendor/bundle
+.byebug_history
+.irb_history
+
+# Logs
+/log/*
+!/log/.keep
+
+# Temp files
+/tmp/*
+!/tmp/.keep
+!/tmp/pids/
+!/tmp/pids/.keep
+!/tmp/storage/
+!/tmp/storage/.keep
+
+# Local databases and uploaded files
+/storage/*
+!/storage/.keep
+
+# Built assets and coverage
+/public/assets
+/coverage
+/node_modules
 
 # Ignore master key for decrypting credentials and more.
 /config/master.key
