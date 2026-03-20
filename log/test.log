@@ -1,0 +1,597 @@
+  [1m[35m (0.1ms)[0m  [1m[35mDROP TABLE IF EXISTS "installations"[0m
+  [1m[35m (0.2ms)[0m  [1m[35mCREATE TABLE "installations" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "admin_github_uid" varchar, "admin_github_login" varchar, "admin_github_name" varchar, "admin_github_avatar_url" varchar, "admin_claimed_at" datetime(6), "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL)[0m
+  [1m[35m (0.0ms)[0m  [1m[35mCREATE UNIQUE INDEX "index_installations_on_admin_github_uid" ON "installations" ("admin_github_uid")[0m
+  [1m[35m (0.1ms)[0m  [1m[35mCREATE TABLE "schema_migrations" ("version" varchar NOT NULL PRIMARY KEY)[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[35m (0.0ms)[0m  [1m[32mINSERT INTO "schema_migrations" (version) VALUES (20260319000100)[0m
+  [1m[35m (0.1ms)[0m  [1m[35mCREATE TABLE "ar_internal_metadata" ("key" varchar NOT NULL PRIMARY KEY, "value" varchar, "created_at" datetime(6) NOT NULL, "updated_at" datetime(6) NOT NULL)[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Create (0.0ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('environment', 'test', '2026-03-20 02:15:25.046328', '2026-03-20 02:15:25.046328') RETURNING "key"[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "environment"]]
+  [1m[36mActiveRecord::InternalMetadata Load (0.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::InternalMetadata Create (0.0ms)[0m  [1m[32mINSERT INTO "ar_internal_metadata" ("key", "value", "created_at", "updated_at") VALUES ('schema_sha1', '6e762ee5c0c20ae92ff53be612d5f2c277391b25', '2026-03-20 02:15:25.046652', '2026-03-20 02:15:25.046652') RETURNING "key"[0m
+  [1m[36mActiveRecord::SchemaMigration Load (0.1ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_first_github_callback_claims_the_installation_after_validation_passes
+--------------------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_non-admin_github_callback_is_rejected_after_claim
+------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:30:26.476694"], ["created_at", "2026-03-20 02:30:26.476815"], ["updated_at", "2026-03-20 02:30:26.476815"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:30:26 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.1ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/login
+Completed 302 Found in 11ms (ActiveRecord: 0.1ms (1 query, 0 cached) | GC: 0.0ms)
+Started GET "/login" for 127.0.0.1 at 2026-03-19 19:30:26 -0700
+Processing by Admin::LoginsController#show as HTML
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/logins/show.html.erb within layouts/admin
+  Rendered admin/logins/show.html.erb within layouts/admin (Duration: 0.2ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 1.9ms | GC: 0.0ms)
+Completed 200 OK in 18ms (Views: 7.6ms | ActiveRecord: 0.0ms (1 query, 1 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+---------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_setup_validation_renders_passing_state_when_checks_succeed
+---------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_root_redirects_to_setup_before_the_admin_is_claimed
+--------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/" for 127.0.0.1 at 2026-03-19 19:30:26 -0700
+Processing by Admin::RootController#show as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/setup
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------
+InstallationTest: test_current_returns_an_unsaved_installation_when_one_does_not_exist
+--------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------
+InstallationTest: test_claim_from_auth!_stores_the_github_identity
+------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kyle Neath"], ["admin_github_avatar_url", "https://example.com/avatar.png"], ["admin_claimed_at", "2026-03-20 02:30:26.556691"], ["created_at", "2026-03-20 02:30:26.556764"], ["updated_at", "2026-03-20 02:30:26.556764"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+SetupValidationTest: test_reports_missing_configuration_and_pending_migrations
+------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+SetupValidationTest: test_passes_when_environment_database_and_s3_checks_succeed
+--------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+SetupValidationTest: test_passes_when_environment_database_and_s3_checks_succeed
+--------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+SetupValidationTest: test_reports_missing_configuration_and_pending_migrations
+------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------
+InstallationTest: test_claim_from_auth!_stores_the_github_identity
+------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kyle Neath"], ["admin_github_avatar_url", "https://example.com/avatar.png"], ["admin_claimed_at", "2026-03-20 02:30:44.148343"], ["created_at", "2026-03-20 02:30:44.148467"], ["updated_at", "2026-03-20 02:30:44.148467"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------
+InstallationTest: test_current_returns_an_unsaved_installation_when_one_does_not_exist
+--------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_root_redirects_to_setup_before_the_admin_is_claimed
+--------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.1ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/" for 127.0.0.1 at 2026-03-19 19:30:44 -0700
+Processing by Admin::RootController#show as HTML
+  [1m[36mInstallation Load (0.1ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/setup
+Completed 302 Found in 2ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_first_github_callback_claims_the_installation_after_validation_passes
+--------------------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:30:44 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Completed 500 Internal Server Error in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_non-admin_github_callback_is_rejected_after_claim
+------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:30:44.190934"], ["created_at", "2026-03-20 02:30:44.191030"], ["updated_at", "2026-03-20 02:30:44.191030"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:30:44 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/login
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+Started GET "/login" for 127.0.0.1 at 2026-03-19 19:30:44 -0700
+Processing by Admin::LoginsController#show as HTML
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/logins/show.html.erb within layouts/admin
+  Rendered admin/logins/show.html.erb within layouts/admin (Duration: 0.1ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 1.6ms | GC: 0.0ms)
+Completed 200 OK in 5ms (Views: 2.4ms | ActiveRecord: 0.0ms (1 query, 1 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+---------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_setup_validation_renders_passing_state_when_checks_succeed
+---------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started POST "/setup/validate" for 127.0.0.1 at 2026-03-19 19:30:44 -0700
+Processing by Admin::SetupController#validate as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Completed 500 Internal Server Error in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+---------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_setup_validation_renders_passing_state_when_checks_succeed
+---------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started POST "/setup/validate" for 127.0.0.1 at 2026-03-19 19:30:56 -0700
+Processing by Admin::SetupController#validate as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/setup/show.html.erb within layouts/admin
+  Rendered admin/setup/show.html.erb within layouts/admin (Duration: 0.3ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.5ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 2.2ms | GC: 0.0ms)
+Completed 200 OK in 9ms (Views: 4.5ms | ActiveRecord: 0.1ms (1 query, 0 cached) | GC: 0.2ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_root_redirects_to_setup_before_the_admin_is_claimed
+--------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/" for 127.0.0.1 at 2026-03-19 19:30:56 -0700
+Processing by Admin::RootController#show as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/setup
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_non-admin_github_callback_is_rejected_after_claim
+------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:30:56.450971"], ["created_at", "2026-03-20 02:30:56.451101"], ["updated_at", "2026-03-20 02:30:56.451101"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:30:56 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/login
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+Started GET "/login" for 127.0.0.1 at 2026-03-19 19:30:56 -0700
+Processing by Admin::LoginsController#show as HTML
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/logins/show.html.erb within layouts/admin
+  Rendered admin/logins/show.html.erb within layouts/admin (Duration: 0.1ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.0ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.3ms | GC: 0.0ms)
+Completed 200 OK in 2ms (Views: 0.4ms | ActiveRecord: 0.0ms (1 query, 1 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_first_github_callback_claims_the_installation_after_validation_passes
+--------------------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:30:56 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:30:56.456205"], ["created_at", "2026-03-20 02:30:56.456256"], ["updated_at", "2026-03-20 02:30:56.456256"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Redirected to http://admin.lvh.me/bundles
+Completed 302 Found in 1ms (ActiveRecord: 0.1ms (2 queries, 0 cached) | GC: 0.0ms)
+Started GET "/bundles" for 127.0.0.1 at 2026-03-19 19:30:56 -0700
+Processing by Admin::BundlesController#index as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/bundles/index.html.erb within layouts/admin
+  Rendered admin/shared/_header.html.erb (Duration: 0.3ms | GC: 0.0ms)
+  Rendered admin/bundles/index.html.erb within layouts/admin (Duration: 0.5ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.0ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.6ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.8ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+SetupValidationTest: test_reports_missing_configuration_and_pending_migrations
+------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+SetupValidationTest: test_passes_when_environment_database_and_s3_checks_succeed
+--------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------
+InstallationTest: test_current_returns_an_unsaved_installation_when_one_does_not_exist
+--------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------
+InstallationTest: test_claim_from_auth!_stores_the_github_identity
+------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kyle Neath"], ["admin_github_avatar_url", "https://example.com/avatar.png"], ["admin_claimed_at", "2026-03-20 02:30:56.460888"], ["created_at", "2026-03-20 02:30:56.460946"], ["updated_at", "2026-03-20 02:30:56.460946"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_root_redirects_to_setup_before_the_admin_is_claimed
+--------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/" for 127.0.0.1 at 2026-03-19 19:31:07 -0700
+Processing by Admin::RootController#show as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/setup
+Completed 302 Found in 5ms (ActiveRecord: 0.1ms (1 query, 0 cached) | GC: 0.4ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_non-admin_github_callback_is_rejected_after_claim
+------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:31:07.248635"], ["created_at", "2026-03-20 02:31:07.248759"], ["updated_at", "2026-03-20 02:31:07.248759"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:31:07 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/login
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.1ms)
+Started GET "/login" for 127.0.0.1 at 2026-03-19 19:31:07 -0700
+Processing by Admin::LoginsController#show as HTML
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/logins/show.html.erb within layouts/admin
+  Rendered admin/logins/show.html.erb within layouts/admin (Duration: 0.2ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 1.6ms | GC: 0.0ms)
+Completed 200 OK in 5ms (Views: 2.4ms | ActiveRecord: 0.0ms (1 query, 1 cached) | GC: 0.1ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_first_github_callback_claims_the_installation_after_validation_passes
+--------------------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:31:07 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:31:07.270469"], ["created_at", "2026-03-20 02:31:07.270543"], ["updated_at", "2026-03-20 02:31:07.270543"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Redirected to http://admin.lvh.me/bundles
+Completed 302 Found in 1ms (ActiveRecord: 0.1ms (2 queries, 0 cached) | GC: 0.0ms)
+Started GET "/bundles" for 127.0.0.1 at 2026-03-19 19:31:07 -0700
+Processing by Admin::BundlesController#index as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/bundles/index.html.erb within layouts/admin
+  Rendered admin/shared/_header.html.erb (Duration: 0.3ms | GC: 0.0ms)
+  Rendered admin/bundles/index.html.erb within layouts/admin (Duration: 0.6ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.0ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.7ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.9ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+---------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_setup_validation_renders_passing_state_when_checks_succeed
+---------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started POST "/setup/validate" for 127.0.0.1 at 2026-03-19 19:31:07 -0700
+Processing by Admin::SetupController#validate as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/setup/show.html.erb within layouts/admin
+  Rendered admin/setup/show.html.erb within layouts/admin (Duration: 0.2ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.0ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.3ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.5ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+SetupValidationTest: test_passes_when_environment_database_and_s3_checks_succeed
+--------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+SetupValidationTest: test_reports_missing_configuration_and_pending_migrations
+------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------
+InstallationTest: test_claim_from_auth!_stores_the_github_identity
+------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kyle Neath"], ["admin_github_avatar_url", "https://example.com/avatar.png"], ["admin_claimed_at", "2026-03-20 02:31:07.277711"], ["created_at", "2026-03-20 02:31:07.277785"], ["updated_at", "2026-03-20 02:31:07.277785"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------
+InstallationTest: test_current_returns_an_unsaved_installation_when_one_does_not_exist
+--------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.1ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_root_redirects_to_setup_before_the_admin_is_claimed
+--------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/" for 127.0.0.1 at 2026-03-19 19:57:34 -0700
+Processing by Admin::RootController#show as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/setup
+Completed 302 Found in 5ms (ActiveRecord: 0.1ms (1 query, 0 cached) | GC: 0.3ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_first_github_callback_claims_the_installation_after_validation_passes
+--------------------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:57:34 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.1ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:57:34.633689"], ["created_at", "2026-03-20 02:57:34.633823"], ["updated_at", "2026-03-20 02:57:34.633823"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Redirected to http://admin.lvh.me/bundles
+Completed 302 Found in 1ms (ActiveRecord: 0.2ms (2 queries, 0 cached) | GC: 0.0ms)
+Started GET "/bundles" for 127.0.0.1 at 2026-03-19 19:57:34 -0700
+Processing by Admin::BundlesController#index as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/bundles/index.html.erb within layouts/admin
+  Rendered admin/shared/_header.html.erb (Duration: 0.3ms | GC: 0.0ms)
+  Rendered admin/bundles/index.html.erb within layouts/admin (Duration: 0.7ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 2.1ms | GC: 0.0ms)
+Completed 200 OK in 6ms (Views: 3.0ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+---------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_setup_validation_renders_passing_state_when_checks_succeed
+---------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started POST "/setup/validate" for 127.0.0.1 at 2026-03-19 19:57:34 -0700
+Processing by Admin::SetupController#validate as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/setup/show.html.erb within layouts/admin
+  Rendered admin/setup/show.html.erb within layouts/admin (Duration: 0.3ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.5ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.7ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_non-admin_github_callback_is_rejected_after_claim
+------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:57:34.646292"], ["created_at", "2026-03-20 02:57:34.646363"], ["updated_at", "2026-03-20 02:57:34.646363"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:57:34 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/login
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+Started GET "/login" for 127.0.0.1 at 2026-03-19 19:57:34 -0700
+Processing by Admin::LoginsController#show as HTML
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/logins/show.html.erb within layouts/admin
+  Rendered admin/logins/show.html.erb within layouts/admin (Duration: 0.1ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.0ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.2ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.3ms | ActiveRecord: 0.0ms (1 query, 1 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------
+InstallationTest: test_claim_from_auth!_stores_the_github_identity
+------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kyle Neath"], ["admin_github_avatar_url", "https://example.com/avatar.png"], ["admin_claimed_at", "2026-03-20 02:57:34.649412"], ["created_at", "2026-03-20 02:57:34.649448"], ["updated_at", "2026-03-20 02:57:34.649448"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------
+InstallationTest: test_current_returns_an_unsaved_installation_when_one_does_not_exist
+--------------------------------------------------------------------------------------
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+SetupValidationTest: test_passes_when_environment_database_and_s3_checks_succeed
+--------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+SetupValidationTest: test_reports_missing_configuration_and_pending_migrations
+------------------------------------------------------------------------------
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mActiveRecord::InternalMetadata Load (0.0ms)[0m  [1m[34mSELECT * FROM "ar_internal_metadata" WHERE "ar_internal_metadata"."key" = ? ORDER BY "ar_internal_metadata"."key" ASC LIMIT 1[0m  [[nil, "schema_sha1"]]
+  [1m[36mActiveRecord::SchemaMigration Load (0.0ms)[0m  [1m[34mSELECT "schema_migrations"."version" FROM "schema_migrations" ORDER BY "schema_migrations"."version" ASC[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------
+InstallationTest: test_claim_from_auth!_stores_the_github_identity
+------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kyle Neath"], ["admin_github_avatar_url", "https://example.com/avatar.png"], ["admin_claimed_at", "2026-03-20 02:59:49.322856"], ["created_at", "2026-03-20 02:59:49.322993"], ["updated_at", "2026-03-20 02:59:49.322993"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------
+InstallationTest: test_current_returns_an_unsaved_installation_when_one_does_not_exist
+--------------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+SetupValidationTest: test_passes_when_environment_database_and_s3_checks_succeed
+--------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+SetupValidationTest: test_reports_missing_configuration_and_pending_migrations
+------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_first_github_callback_claims_the_installation_after_validation_passes
+--------------------------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:59:49 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.1ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:59:49.375224"], ["created_at", "2026-03-20 02:59:49.375320"], ["updated_at", "2026-03-20 02:59:49.375320"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Redirected to http://admin.lvh.me/bundles
+Completed 302 Found in 3ms (ActiveRecord: 0.2ms (2 queries, 0 cached) | GC: 0.0ms)
+Started GET "/bundles" for 127.0.0.1 at 2026-03-19 19:59:49 -0700
+Processing by Admin::BundlesController#index as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/bundles/index.html.erb within layouts/admin
+  Rendered admin/shared/_header.html.erb (Duration: 0.3ms | GC: 0.0ms)
+  Rendered admin/bundles/index.html.erb within layouts/admin (Duration: 0.7ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 2.0ms | GC: 0.0ms)
+Completed 200 OK in 5ms (Views: 2.9ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_non-admin_github_callback_is_rejected_after_claim
+------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mSAVEPOINT active_record_1[0m
+  [1m[36mInstallation Create (0.1ms)[0m  [1m[32mINSERT INTO "installations" ("admin_github_uid", "admin_github_login", "admin_github_name", "admin_github_avatar_url", "admin_claimed_at", "created_at", "updated_at") VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING "id"[0m  [["admin_github_uid", "12345"], ["admin_github_login", "kneath"], ["admin_github_name", "Kneath"], ["admin_github_avatar_url", "https://example.com/kneath.png"], ["admin_claimed_at", "2026-03-20 02:59:49.385023"], ["created_at", "2026-03-20 02:59:49.385100"], ["updated_at", "2026-03-20 02:59:49.385100"]]
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[35mRELEASE SAVEPOINT active_record_1[0m
+Started GET "/auth/github/callback" for 127.0.0.1 at 2026-03-19 19:59:49 -0700
+Processing by Admin::SessionsController#create as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/login
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+Started GET "/login" for 127.0.0.1 at 2026-03-19 19:59:49 -0700
+Processing by Admin::LoginsController#show as HTML
+  [1m[36mCACHE Installation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/logins/show.html.erb within layouts/admin
+  Rendered admin/logins/show.html.erb within layouts/admin (Duration: 0.1ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.0ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.2ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.3ms | ActiveRecord: 0.0ms (1 query, 1 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+--------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_root_redirects_to_setup_before_the_admin_is_claimed
+--------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started GET "/" for 127.0.0.1 at 2026-03-19 19:59:49 -0700
+Processing by Admin::RootController#show as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+Redirected to http://admin.lvh.me/setup
+Completed 302 Found in 0ms (ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[36mBEGIN deferred TRANSACTION[0m
+---------------------------------------------------------------------------------------
+AdminBootstrapFlowTest: test_setup_validation_renders_passing_state_when_checks_succeed
+---------------------------------------------------------------------------------------
+[dotenv] Saved a snapshot of [32mENV[0m
+  [1m[36mInstallation Delete All (0.0ms)[0m  [1m[31mDELETE FROM "installations"[0m
+Started POST "/setup/validate" for 127.0.0.1 at 2026-03-19 19:59:49 -0700
+Processing by Admin::SetupController#validate as HTML
+  [1m[36mInstallation Load (0.0ms)[0m  [1m[34mSELECT "installations".* FROM "installations" ORDER BY "installations"."id" ASC LIMIT ?[0m  [["LIMIT", 1]]
+  Rendering layout layouts/admin.html.erb
+  Rendering admin/setup/show.html.erb within layouts/admin
+  Rendered admin/setup/show.html.erb within layouts/admin (Duration: 0.2ms | GC: 0.0ms)
+  Rendered shared/_flash.html.erb (Duration: 0.1ms | GC: 0.0ms)
+  Rendered layout layouts/admin.html.erb (Duration: 0.4ms | GC: 0.0ms)
+Completed 200 OK in 1ms (Views: 0.6ms | ActiveRecord: 0.0ms (1 query, 0 cached) | GC: 0.0ms)
+  [1m[36mTRANSACTION (0.0ms)[0m  [1m[31mROLLBACK TRANSACTION[0m

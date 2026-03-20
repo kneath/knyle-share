@@ -1,0 +1,9 @@
+<% flash.each do |type, message| %>
+  <div class="flash-stack">
+    <div class="flash <%= type == "alert" ? "flash-alert" : "flash-notice" %>">
+      <div class="container">
+        <%= message %>
+      </div>
+    </div>
+  </div>
+<% end %>

@@ -1,0 +1,16 @@
+<% content_for :title, "Sign In · Knyle Share" %>
+
+<div class="page-centered">
+  <div class="centered-card" style="text-align: center;">
+    <h1 style="margin-bottom: 0.25rem;">Knyle Share</h1>
+    <p class="text-muted" style="margin-bottom: 2rem;">Admin access only</p>
+
+    <a href="/auth/github" class="btn btn-github btn-full">
+      Sign in with GitHub
+    </a>
+
+    <p class="text-muted" style="margin-top: 2rem; font-size: 0.8rem;">
+      Only <%= installation.admin_label %> can sign in to this installation.
+    </p>
+  </div>
+</div>

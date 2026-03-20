@@ -1,0 +1,42 @@
+<% content_for :title, "Set Up · Knyle Share" %>
+
+<div class="page-centered">
+  <div class="centered-card wide">
+    <h1 style="margin-bottom: 0.25rem;">Set up Knyle Share</h1>
+    <p class="text-muted" style="margin-bottom: 1.5rem;">
+      Verify your configuration before claiming the admin account.
+    </p>
+
+    <ul class="checklist">
+      <% @validation_result.checks.each do |check| %>
+        <li>
+          <span class="check-icon <%= check.css_class %>"><%= check.icon %></span>
+          <div class="check-copy">
+            <div><%= check.label %></div>
+            <p class="text-muted"><%= check.detail %></p>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+
+    <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 1.25rem;">
+      <%= @validation_result.summary %>
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <%= form_with url: admin_validate_setup_path, method: :post do %>
+        <button class="btn btn-secondary btn-full" type="submit">Re-run checks</button>
+      <% end %>
+
+      <% if @validation_result.passed? %>
+        <a class="btn btn-github btn-full" href="/auth/github">Sign in with GitHub</a>
+      <% else %>
+        <span class="btn btn-github btn-full is-disabled">Sign in with GitHub</span>
+      <% end %>
+    </div>
+
+    <p class="text-muted" style="margin-top: 1.5rem; font-size: 0.8rem; text-align: center;">
+      The first GitHub login after all checks pass will become the admin.
+    </p>
+  </div>
+</div>

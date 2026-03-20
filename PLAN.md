@@ -370,8 +370,8 @@ The reason for this split is simple: early Rails app work touches the same files
 
 Task list:
 
-- [ ] Generate Rails in the root
-- [ ] Preserve `prototype/`, `shaping/`, `TECHNICAL_PREFERENCES.md`, and `PLAN.md`
+- [x] Generate Rails in the root
+- [x] Preserve `prototype/`, `shaping/`, `TECHNICAL_PREFERENCES.md`, and `PLAN.md`
 - [ ] Commit the generated baseline before product-specific work starts
 
 Goal:
@@ -394,9 +394,9 @@ Definition of done:
 
 Task list:
 
-- [ ] Configure SQLite, environment variables, and host constraints
-- [ ] Add the admin layout and shared styles translated from the prototype
-- [ ] Wire empty root, login, setup, and bundle index routes with placeholder content
+- [x] Configure SQLite, environment variables, and host constraints
+- [x] Add the admin layout and shared styles translated from the prototype
+- [x] Wire empty root, login, setup, and bundle index routes with placeholder content
 
 Goal:
 
@@ -418,10 +418,10 @@ Definition of done:
 
 Task list:
 
-- [ ] Implement `Installation`
-- [ ] Implement `SetupValidation`
-- [ ] Implement GitHub OAuth and admin session handling
-- [ ] Implement fresh-install setup, blocked validation state, successful claim, and later login behavior
+- [x] Implement `Installation`
+- [x] Implement `SetupValidation`
+- [x] Implement GitHub OAuth and admin session handling
+- [x] Implement fresh-install setup, blocked validation state, successful claim, and later login behavior
 
 Goal:
 

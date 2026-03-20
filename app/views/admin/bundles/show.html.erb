@@ -1,0 +1,114 @@
+<% content_for :title, "#{@bundle[:slug]} · Knyle Share" %>
+
+<div class="page">
+  <%= render "admin/shared/header" %>
+
+  <main>
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="<%= admin_bundles_path %>">Bundles</a> / <%= @bundle[:slug] %>
+      </div>
+
+      <div class="page-title">
+        <div>
+          <h1>
+            <%= @bundle[:slug] %>
+            <span class="badge"><%= @bundle[:presentation_label] %></span>
+          </h1>
+          <div class="bundle-url">
+            <code><%= @bundle[:bundle_url] %></code>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-label">Total Views</div>
+          <div class="stat-value"><%= @bundle[:views].split.first %></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Unique Viewers</div>
+          <div class="stat-value"><%= @bundle[:unique_viewers] %></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Last Viewed</div>
+          <div class="stat-value"><%= @bundle[:last_viewed] %></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Created</div>
+          <div class="stat-value"><%= @bundle[:created_at] %></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h2>Status &amp; Access</h2>
+
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="detail-value">
+            <span class="badge <%= @bundle[:status_class] %>"><%= @bundle[:status_label] %></span>
+          </span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Access</span>
+          <span class="detail-value">
+            <span class="badge <%= @bundle[:access_class] %>"><%= @bundle[:access_label] %></span>
+          </span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Password</span>
+          <span class="detail-value">
+            <%= @bundle[:password].present? ? content_tag(:code, @bundle[:password]) : "Not required" %>
+          </span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Session duration</span>
+          <span class="detail-value">24 hours</span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h2>Bundle Info</h2>
+
+        <div class="detail-row">
+          <span class="detail-label">Source</span>
+          <span class="detail-value"><%= @bundle[:source_label] %></span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Size</span>
+          <span class="detail-value"><%= @bundle[:size] %></span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Files</span>
+          <span class="detail-value"><%= @bundle[:files] %></span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Last replaced</span>
+          <span class="detail-value"><%= @bundle[:last_replaced] %></span>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h2>Actions</h2>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <a href="<%= admin_bundle_link_path(@bundle[:slug]) %>" class="btn btn-primary">Generate expiring link</a>
+          <button class="btn btn-secondary" type="button">Change password</button>
+          <button class="btn btn-secondary" type="button">Disable bundle</button>
+        </div>
+      </div>
+
+      <div class="danger-zone">
+        <h3>Danger Zone</h3>
+        <p>Permanently delete this bundle and all its files. This action cannot be undone.</p>
+        <button class="btn btn-danger" type="button">Delete bundle</button>
+      </div>
+    </div>
+  </main>
+</div>
