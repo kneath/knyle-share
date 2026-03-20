@@ -60,6 +60,35 @@ class AdminBootstrapFlowTest < ActionDispatch::IntegrationTest
     assert_match "not the configured admin", response.body
   end
 
+  test "claimed installations redirect setup to login without running validation" do
+    Installation.current.claim_from_auth!(github_auth(uid: "12345", login: "kneath"))
+
+    SetupValidation.stub :new, -> { raise "validation should not run after claim" } do
+      get admin_setup_url(host: "admin.lvh.me")
+      assert_redirected_to admin_login_url(host: "admin.lvh.me")
+
+      post admin_validate_setup_url(host: "admin.lvh.me")
+    end
+
+    assert_redirected_to admin_login_url(host: "admin.lvh.me")
+  end
+
+  test "signed-in admins are redirected away from setup after claim without running validation" do
+    Installation.current.claim_from_auth!(github_auth(uid: "12345", login: "kneath"))
+    OmniAuth.config.mock_auth[:github] = github_auth(uid: "12345", login: "kneath")
+    get "/auth/github/callback"
+    assert_redirected_to admin_bundles_url(host: "admin.lvh.me")
+
+    SetupValidation.stub :new, -> { raise "validation should not run after claim" } do
+      get admin_setup_url(host: "admin.lvh.me")
+      assert_redirected_to admin_bundles_url(host: "admin.lvh.me")
+
+      post admin_validate_setup_url(host: "admin.lvh.me")
+    end
+
+    assert_redirected_to admin_bundles_url(host: "admin.lvh.me")
+  end
+
   private
 
   def github_auth(uid:, login:)
