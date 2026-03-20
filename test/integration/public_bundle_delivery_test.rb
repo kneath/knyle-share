@@ -164,6 +164,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public markdown pages use prerendered html when it is available" do
+    @public_markdown.assets.first.update!(
+      rendered_html: "<h1>Pre-rendered</h1>\n<p>Fast path.</p>",
+      rendered_html_version: BundleMarkdownRenderer::VERSION
+    )
+
+    with_stubbed_storage({}) do |fake_storage|
+      get "http://field-notes.share.lvh.me/"
+
+      assert_response :success
+      assert_match "Pre-rendered", response.body
+      assert_match "Fast path.", response.body
+      assert_empty fake_storage.reads
+    end
+  end
+
   test "protected bundles require a password and create a viewer session" do
     get public_bundle_url(slug: @protected_download.slug, host: "share.lvh.me")
 

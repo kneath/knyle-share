@@ -120,6 +120,7 @@ module Public
         @bundle.status,
         asset&.id,
         asset&.checksum,
+        asset&.rendered_html_version,
         asset&.byte_size,
         asset&.content_type
       ]

@@ -28,7 +28,12 @@ module Public
             request_path: request.path
           )
 
-          @rendered_markdown = helpers.sanitize(Commonmarker.to_html(storage.read(@entry_asset)))
+          @rendered_markdown =
+            if @entry_asset.has_prerendered_markdown?
+              @entry_asset.rendered_html
+            else
+              BundleMarkdownRenderer.render(storage.read(@entry_asset))
+            end
           render :markdown
         else
           return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_download)

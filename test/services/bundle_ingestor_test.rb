@@ -42,6 +42,9 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert bundle.authenticate("river maple lantern")
     assert_equal 1, bundle.content_revision
     assert_equal 1, bundle.assets.count
+    assert_includes bundle.assets.first.rendered_html, "<h1"
+    assert_includes bundle.assets.first.rendered_html, "Hello"
+    assert_equal BundleMarkdownRenderer::VERSION, bundle.assets.first.rendered_html_version
     assert_equal ["uploads/u1/field-notes.md"], store.deleted_keys
     assert store.objects.key?("bundles/#{bundle.id}/1/field-notes.md")
   end
@@ -78,6 +81,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_equal 2, bundle.assets.count
     assert_equal 300, bundle.byte_size
     assert_equal %w[assets/app.css index.html], bundle.assets.order(:path).pluck(:path)
+    assert_nil bundle.assets.find_by!(path: "index.html").rendered_html
   end
 
   test "publishes a tar gz directory upload into extracted bundle assets" do

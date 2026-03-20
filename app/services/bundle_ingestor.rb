@@ -30,7 +30,7 @@ class BundleIngestor
         staged_entries:
       )
 
-      copied_assets = copy_and_build_assets!(bundle:, staged_entries:, copied_keys:)
+      copied_assets = copy_and_build_assets!(bundle:, classification:, staged_entries:, copied_keys:)
       old_keys = existing_bundle.present? ? existing_bundle.assets.pluck(:storage_key) : []
 
       bundle.assets.destroy_all
@@ -119,7 +119,7 @@ class BundleIngestor
     end
   end
 
-  def copy_and_build_assets!(bundle:, staged_entries:, copied_keys:)
+  def copy_and_build_assets!(bundle:, classification:, staged_entries:, copied_keys:)
     staged_entries.map do |entry|
       storage_key = BundleIngest::PublishedStorageKey.call(
         bundle_id: bundle.id,
@@ -136,7 +136,9 @@ class BundleIngestor
         storage_key:,
         content_type: entry.content_type,
         byte_size: entry.byte_size,
-        checksum: entry.checksum
+        checksum: entry.checksum,
+        rendered_html: rendered_markdown_for(entry:, classification:),
+        rendered_html_version: rendered_markdown_version_for(entry:, classification:)
       )
     end
   end
@@ -169,5 +171,30 @@ class BundleIngestor
         content_type: entry.content_type
       )
     end
+  end
+
+  def rendered_markdown_for(entry:, classification:)
+    return unless prerender_markdown?(entry:, classification:)
+
+    BundleMarkdownRenderer.render(markdown_body_for(entry))
+  end
+
+  def rendered_markdown_version_for(entry:, classification:)
+    return unless prerender_markdown?(entry:, classification:)
+
+    BundleMarkdownRenderer::VERSION
+  end
+
+  def prerender_markdown?(entry:, classification:)
+    classification.presentation_kind == "markdown_document" &&
+      classification.entry_path == entry.path &&
+      entry.byte_size <= BundleStorage.inline_markdown_render_max_bytes(env: ENV)
+  end
+
+  def markdown_body_for(entry)
+    return entry.body if entry.body.present?
+    return object_store.read(key: entry.source_key) if entry.source_key.present?
+
+    raise Error, "Missing markdown body for #{entry.path.inspect}"
   end
 end

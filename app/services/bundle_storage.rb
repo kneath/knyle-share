@@ -43,7 +43,7 @@ class BundleStorage
   end
 
   def render_markdown_inline?(asset)
-    asset.byte_size <= inline_markdown_render_max_bytes
+    asset.byte_size <= self.class.inline_markdown_render_max_bytes(env:)
   end
 
   def public_asset_response_cache_control
@@ -58,6 +58,12 @@ class BundleStorage
     Integer(env.fetch("PUBLIC_ASSET_REDIRECT_TTL_SECONDS", DEFAULT_PUBLIC_ASSET_REDIRECT_TTL_SECONDS))
   rescue ArgumentError, TypeError
     DEFAULT_PUBLIC_ASSET_REDIRECT_TTL_SECONDS
+  end
+
+  def self.inline_markdown_render_max_bytes(env: ENV)
+    Integer(env.fetch("INLINE_MARKDOWN_RENDER_MAX_BYTES", DEFAULT_INLINE_MARKDOWN_RENDER_MAX_BYTES))
+  rescue ArgumentError, TypeError
+    DEFAULT_INLINE_MARKDOWN_RENDER_MAX_BYTES
   end
 
   private
@@ -76,8 +82,6 @@ class BundleStorage
   end
 
   def inline_markdown_render_max_bytes
-    Integer(env.fetch("INLINE_MARKDOWN_RENDER_MAX_BYTES", DEFAULT_INLINE_MARKDOWN_RENDER_MAX_BYTES))
-  rescue ArgumentError, TypeError
-    DEFAULT_INLINE_MARKDOWN_RENDER_MAX_BYTES
+    self.class.inline_markdown_render_max_bytes(env:)
   end
 end
