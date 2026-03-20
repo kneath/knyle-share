@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generate Link — Knyle Share</title>
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <div class="page">
+
+    <header class="header-bar">
+      <a href="bundles.html" class="brand">Knyle Share</a>
+      <nav>
+        <a href="login.html">Sign out</a>
+        <span class="avatar"></span>
+      </nav>
+    </header>
+
+    <main>
+      <div class="container">
+
+        <div class="breadcrumb">
+          <a href="bundles.html">Bundles</a> / <a href="bundle.html">poke-recipes</a> / Generate link
+        </div>
+
+        <div class="page-title">
+          <h1>Generate expiring link</h1>
+        </div>
+
+        <p class="text-muted mb-2">
+          Create a link that grants access to <strong style="color: var(--color-text);">poke-recipes</strong> without requiring a password. The link will expire after the chosen duration.
+        </p>
+
+        <!-- Before generation state -->
+        <div class="detail-section">
+          <h2>Choose expiration</h2>
+          <div class="pill-group mt-1">
+            <button class="pill">1 day</button>
+            <button class="pill is-selected">1 week</button>
+            <button class="pill">1 month</button>
+          </div>
+
+          <div class="mt-3">
+            <button class="btn btn-primary">Generate link</button>
+          </div>
+        </div>
+
+        <!-- After generation state -->
+        <div class="detail-section">
+          <h2>Your expiring link</h2>
+          <p class="text-muted mb-1" style="font-size: 0.87rem;">
+            This link expires in 1 week (March 26, 2026). Anyone with this link can view the bundle without a password.
+          </p>
+
+          <div class="copy-box">
+            <code>https://share.warpspire.com/poke-recipes?access=eyJhbGciOiJIUzI1NiJ9.eyJidW5kbGVfaWQiOjEsImV4cCI6MTc0MzAzNTIwMH0</code>
+            <button class="btn btn-secondary">Copy</button>
+          </div>
+
+          <div class="mt-2">
+            <a href="bundle.html" class="btn btn-ghost">&larr; Back to bundle</a>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+</body>
+</html>
