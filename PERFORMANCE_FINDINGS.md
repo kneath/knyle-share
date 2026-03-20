@@ -13,15 +13,15 @@ Completed in this session:
 - File listings are paginated to 50 items per page and use page-aware cache keys.
 - The stylesheet is split by surface so admin-only and public-home CSS no longer block every route.
 - Public view analytics now enqueue through `ActiveJob` instead of writing inline on the request path.
-- Full test suite currently passes: `76 runs, 383 assertions, 0 failures, 0 errors, 0 skips`.
+- Public documents now advertise edge-friendly cache semantics including `s-maxage`, and request responses include `Server-Timing` entries for storage reads, fallback markdown rendering, and analytics enqueue work.
+- File listings now default to directory-aware navigation, so the root view only renders immediate children and deeper directories paginate within their own prefix.
+- Full test suite currently passes: `77 runs, 418 assertions, 0 failures, 0 errors, 0 skips`.
 
 Still remaining:
 
-- Move public bundle assets to stable immutable public URLs or a CDN/object-storage host instead of Rails-issued redirects.
-- Add explicit edge cache semantics for public documents, including `s-maxage` style behavior where the deployment supports it.
+- Move public bundle assets to stable immutable public URLs or a CDN/object-storage host instead of Rails-issued redirects. Deferred for now because it is a larger architectural concern.
 - Verify Brotli/gzip behavior at the edge in the real deployment.
-- Add server timing instrumentation for storage reads, fallback markdown rendering, and analytics enqueue/perform timing.
-- Add server-side search/prefix filtering or a directory-tree view for very large file listings.
+- Extend instrumentation beyond request-level `Server-Timing` where useful, especially around async analytics job execution.
 
 ## Executive Summary
 
@@ -108,7 +108,8 @@ Status:
 
 - Partially addressed.
 - Implemented: public and protected document pages now use conditional GET handling, protected validators include revocation state, markdown is pre-rendered at ingest for new bundles, and analytics writes were moved off the request path.
-- Remaining: public document responses still need explicit edge-oriented cache semantics and the deployment still needs CDN/edge verification.
+- Implemented: public document responses now include edge-oriented cache semantics such as `s-maxage` and `stale-while-revalidate`, and request responses include `Server-Timing` entries for storage reads, fallback markdown rendering, and analytics enqueue work.
+- Remaining: real CDN/edge verification and any non-request instrumentation still needed around async job execution.
 
 Actionable fix:
 
@@ -138,9 +139,10 @@ Judgment:
 
 Status:
 
-- Partially addressed.
+- Addressed for current scope.
 - Implemented: file listings now paginate to 50 items per page, only select the columns needed for the listing, and include pagination state in the cache key.
-- Remaining: search/prefix filtering and a directory-oriented presentation for very large bundles.
+- Implemented: file listings now default to directory-aware browsing, with prefix-specific pagination and 404 handling for invalid or missing directories.
+- Remaining: revisit search only if real bundles show the directory view is still too hard to navigate.
 
 Actionable fix:
 
@@ -186,15 +188,14 @@ These are not separate code findings, but they matter if the goal is fast delive
 
 - Put the public bundle host behind a CDN or edge cache for public bundle traffic, but explicitly bypass caching for protected responses, password-gate pages, signed-link flows, and auth-sensitive redirects. `config/environments/production.rb:28-29` leaves `config.asset_host` unused, and public document delivery currently depends heavily on origin performance.
 - Verify Brotli or gzip for HTML, CSS, and JS at the edge. Do not assume the hosting platform is doing the right thing without measurement.
-- Expose server timing for S3 fetch time, markdown render time, and analytics write time so regressions are visible in the browser.
+- Expose server timing for S3 fetch time, markdown render time, and analytics enqueue work so regressions are visible in the browser. Async job execution still needs separate instrumentation if it becomes important.
 - Keep the public path simple. The current architecture is light on JS, which is good. Preserve that advantage while improving cache behavior.
 
 ## Next Steps
 
-1. Move public bundle assets and, where appropriate, public documents to stable immutable public URLs or a CDN/object-storage host so repeat visits avoid the Rails redirect hop.
-2. Add explicit edge cache semantics for public documents and verify real deployment compression behavior.
-3. Add `Server-Timing` instrumentation around storage fetches, fallback markdown rendering, and analytics enqueue/perform work.
-4. Add server-side search/prefix filtering or directory-tree navigation for very large file listings.
+1. Verify real deployment compression behavior for the new public document cache semantics.
+2. Extend instrumentation beyond request-level `Server-Timing` if async analytics job execution needs separate visibility.
+3. Revisit moving public assets to stable immutable public URLs or a CDN/object-storage host when that broader architecture work is in scope.
 
 ## Verification Checklist
 
@@ -209,6 +210,7 @@ These are not separate code findings, but they matter if the goal is fast delive
 - Shared CDN caching or cacheable protected redirects for protected bundles or protected documents. The performance win is not worth weakening the access boundary.
 - Moving the public homepage inline script into a separate asset purely for performance. Revisit only if CSP hardening work already makes that change convenient.
 - Admin pagination right now. Revisit when actual bundle counts or admin traces show this page has become materially slow.
+- Full-text search across file listings right now. Directory-aware browsing already bounds the initial response, so deeper search is only worth adding if real bundle usage shows navigation pain.
 - Inlining tiny critical CSS for the password gate and single-download shells. The simpler win is splitting the shared stylesheet; critical-CSS hand tuning is not worth the maintenance cost yet.
 - Micro-optimizing the existing tiny icon files or inline text before cacheability and TTFB are fixed.
 - Adding a client-heavy frontend framework to chase performance here.

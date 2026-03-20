@@ -1,6 +1,7 @@
 module Public
   class BaseController < ApplicationController
     PUBLIC_DOCUMENT_CACHE_TTL_SECONDS = 5.minutes.to_i
+    PUBLIC_DOCUMENT_EDGE_CACHE_TTL_SECONDS = 5.minutes.to_i
     PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS = 1.minute.to_i
     BUNDLE_PAGE_CACHE_VERSION = 1
 
@@ -64,8 +65,8 @@ module Public
     def render_html_asset(asset, access_method:, viewer_session: nil)
       return unless stale_bundle_page?(asset:, variant: :static_site_html)
 
-      fetched_asset = storage.fetch(asset)
-      analytics.record_view_later(
+      fetched_asset = fetch_bundle_asset(asset)
+      record_bundle_view(
         bundle: @bundle,
         viewer_session:,
         access_method:,
@@ -134,7 +135,8 @@ module Public
       if @bundle.public_access?
         {
           max_age: PUBLIC_DOCUMENT_CACHE_TTL_SECONDS,
-          stale_while_revalidate: PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS
+          stale_while_revalidate: PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS,
+          extras: [ "s-maxage=#{PUBLIC_DOCUMENT_EDGE_CACHE_TTL_SECONDS}" ]
         }
       else
         {
@@ -159,6 +161,41 @@ module Public
       else
         storage.protected_asset_response_cache_control
       end
+    end
+
+    def fetch_bundle_asset(asset)
+      measure_server_timing("bundle-storage-read") { storage.fetch(asset) }
+    end
+
+    def read_bundle_asset(asset)
+      measure_server_timing("bundle-storage-read") { storage.read(asset) }
+    end
+
+    def record_bundle_view(bundle:, viewer_session:, access_method:, request_path:)
+      measure_server_timing("bundle-analytics-enqueue") do
+        analytics.record_view_later(
+          bundle:,
+          viewer_session:,
+          access_method:,
+          request_path:
+        )
+      end
+    end
+
+    def measure_server_timing(metric)
+      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      yield
+    ensure
+      if started_at
+        duration_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000.0
+        append_server_timing(metric, duration_ms)
+      end
+    end
+
+    def append_server_timing(metric, duration_ms)
+      entry = "#{metric};dur=#{format('%.2f', duration_ms)}"
+      existing = response.get_header("Server-Timing")
+      response.set_header("Server-Timing", [existing, entry].compact.join(", "))
     end
   end
 end

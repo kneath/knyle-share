@@ -1,36 +1,68 @@
-<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+<% title_segments = [@bundle.title] %>
+<% title_segments << @current_file_listing_prefix if @current_file_listing_prefix.present? %>
+<% content_for :title, "#{title_segments.join(' · ')} · Knyle Share" %>
 
 <div class="page">
   <main>
     <div class="container">
+      <nav class="breadcrumb" aria-label="Directory navigation">
+        <% public_bundle_file_listing_breadcrumbs(@current_file_listing_prefix).each_with_index do |breadcrumb, index| %>
+          <% if index.positive? %>
+            <span aria-hidden="true"> / </span>
+          <% end %>
+
+          <% if breadcrumb[:prefix] == @current_file_listing_prefix || (breadcrumb[:prefix].nil? && @current_file_listing_prefix.blank?) %>
+            <span><%= breadcrumb[:label] %></span>
+          <% else %>
+            <a href="<%= public_bundle_file_listing_url_for(@bundle, access_token: params[:access], prefix: breadcrumb[:prefix]) %>"><%= breadcrumb[:label] %></a>
+          <% end %>
+        <% end %>
+      </nav>
+
       <div class="page-title">
         <h1><%= @bundle.title %></h1>
+        <% if @current_file_listing_prefix.present? %>
+          <div class="bundle-url mono"><%= @current_file_listing_prefix %></div>
+        <% end %>
       </div>
 
       <div class="card">
-        <ul class="bundle-list">
-          <% @file_listing_assets.each do |asset| %>
-            <li>
-              <a class="bundle-item" href="<%= public_bundle_asset_url_for(@bundle, asset_path: asset.path, access_token: params[:access]) %>">
-                <div>
-                  <div class="bundle-name"><%= public_bundle_file_name(asset) %></div>
-                  <div class="bundle-slug mono"><%= asset.path %></div>
-                </div>
-                <div class="bundle-stats">
-                  <div><%= public_bundle_size_label(asset.byte_size) %></div>
-                </div>
-              </a>
-            </li>
-          <% end %>
-        </ul>
+        <% if @file_listing_entries.any? %>
+          <ul class="bundle-list">
+            <% @file_listing_entries.each do |entry| %>
+              <li>
+                <% if entry.directory? %>
+                  <a class="bundle-item" href="<%= public_bundle_file_listing_url_for(@bundle, access_token: params[:access], prefix: entry.path) %>">
+                    <div>
+                      <div class="bundle-name"><%= entry.name %>/</div>
+                      <div class="bundle-slug mono"><%= entry.path %></div>
+                    </div>
+                    <div class="bundle-stats">
+                      <span class="badge">Folder</span>
+                    </div>
+                  </a>
+                <% else %>
+                  <a class="bundle-item" href="<%= public_bundle_asset_url_for(@bundle, asset_path: entry.path, access_token: params[:access]) %>">
+                    <div>
+                      <div class="bundle-name"><%= entry.name %></div>
+                      <div class="bundle-slug mono"><%= entry.path %></div>
+                    </div>
+                    <div class="bundle-stats">
+                      <div><%= public_bundle_size_label(entry.byte_size) %></div>
+                    </div>
+                  </a>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <p class="text-muted">No files are available in this directory.</p>
+        <% end %>
 
         <% if @total_file_listing_pages > 1 %>
-          <% base_url = public_bundle_url_for(@bundle, access_token: params[:access]) %>
-          <% separator = base_url.include?("?") ? "&" : "?" %>
-
           <nav class="home-actions" aria-label="File listing pagination">
             <% if @current_file_listing_page > 1 %>
-              <a class="btn btn-secondary" href="<%= "#{base_url}#{separator}page=#{@current_file_listing_page - 1}" %>">Previous</a>
+              <a class="btn btn-secondary" href="<%= public_bundle_file_listing_url_for(@bundle, access_token: params[:access], prefix: @current_file_listing_prefix, page: @current_file_listing_page - 1) %>">Previous</a>
             <% end %>
 
             <span class="text-muted" aria-live="polite">
@@ -38,7 +70,7 @@
             </span>
 
             <% if @current_file_listing_page < @total_file_listing_pages %>
-              <a class="btn btn-secondary" href="<%= "#{base_url}#{separator}page=#{@current_file_listing_page + 1}" %>">Next</a>
+              <a class="btn btn-secondary" href="<%= public_bundle_file_listing_url_for(@bundle, access_token: params[:access], prefix: @current_file_listing_prefix, page: @current_file_listing_page + 1) %>">Next</a>
             <% end %>
           </nav>
         <% end %>

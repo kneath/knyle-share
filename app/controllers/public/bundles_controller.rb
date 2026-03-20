@@ -3,6 +3,7 @@ module Public
     skip_forgery_protection only: :asset
 
     FILE_LISTING_PAGE_SIZE = 50
+    INVALID_FILE_LISTING_PREFIX = :invalid
 
     before_action :set_bundle
     before_action :ensure_protected_static_asset_request_is_same_origin!, only: :asset
@@ -21,7 +22,7 @@ module Public
         if storage.render_markdown_inline?(@entry_asset)
           return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_inline)
 
-          analytics.record_view_later(
+          record_bundle_view(
             bundle: @bundle,
             viewer_session: result.viewer_session,
             access_method: result.access_method,
@@ -32,13 +33,16 @@ module Public
             if @entry_asset.has_prerendered_markdown?
               @entry_asset.rendered_html
             else
-              BundleMarkdownRenderer.render(storage.read(@entry_asset))
+              markdown_body = read_bundle_asset(@entry_asset)
+              measure_server_timing("bundle-markdown-render") do
+                BundleMarkdownRenderer.render(markdown_body)
+              end
             end
           render :markdown
         else
           return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_download)
 
-          analytics.record_view_later(
+          record_bundle_view(
             bundle: @bundle,
             viewer_session: result.viewer_session,
             access_method: result.access_method,
@@ -50,7 +54,7 @@ module Public
         @entry_asset = entry_asset
         return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
-        analytics.record_view_later(
+        record_bundle_view(
           bundle: @bundle,
           viewer_session: result.viewer_session,
           access_method: result.access_method,
@@ -58,22 +62,38 @@ module Public
         )
         render :single_download
       when "file_listing"
+        @current_file_listing_prefix = requested_file_listing_prefix
+        if @current_file_listing_prefix == INVALID_FILE_LISTING_PREFIX
+          render plain: "Directory not found.", status: :not_found
+          return
+        end
+
         @page = requested_page
         @per_page = FILE_LISTING_PAGE_SIZE
-        @total_file_listing_pages = [(@bundle.asset_count.to_f / @per_page).ceil, 1].max
+        @total_file_listing_entries = BundleAsset.file_listing_entry_count_for(
+          bundle: @bundle,
+          prefix: @current_file_listing_prefix
+        )
+        if @current_file_listing_prefix.present? && @total_file_listing_entries.zero?
+          render plain: "Directory not found.", status: :not_found
+          return
+        end
+
+        @total_file_listing_pages = [(@total_file_listing_entries.to_f / @per_page).ceil, 1].max
         @current_file_listing_page = [@page, @total_file_listing_pages].min
-        @file_listing_assets = @bundle.assets
-          .select(:id, :path, :byte_size)
-          .order(:path)
-          .offset((@current_file_listing_page - 1) * @per_page)
-          .limit(@per_page)
+        @file_listing_entries = BundleAsset.file_listing_entries_for(
+          bundle: @bundle,
+          prefix: @current_file_listing_prefix,
+          limit: @per_page,
+          offset: (@current_file_listing_page - 1) * @per_page
+        )
 
         return unless stale_bundle_page?(
           variant: :file_listing,
-          extra: [@bundle.asset_count, @bundle.byte_size, @current_file_listing_page, @per_page]
+          extra: [@current_file_listing_prefix, @total_file_listing_entries, @current_file_listing_page, @per_page]
         )
 
-        analytics.record_view_later(
+        record_bundle_view(
           bundle: @bundle,
           viewer_session: result.viewer_session,
           access_method: result.access_method,
@@ -151,6 +171,16 @@ module Public
     def requested_page
       page = params[:page].to_i
       page.positive? ? page : 1
+    end
+
+    def requested_file_listing_prefix
+      raw_prefix = params[:prefix].to_s
+      return "" if raw_prefix.blank?
+
+      segments = raw_prefix.split("/").reject(&:blank?)
+      return INVALID_FILE_LISTING_PREFIX if segments.any? { |segment| %w[. ..].include?(segment) }
+
+      "#{segments.join('/')}/"
     end
 
     def ensure_protected_static_asset_request_is_same_origin!

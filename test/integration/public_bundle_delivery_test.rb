@@ -83,6 +83,12 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
         byte_size: index + 1
       )
     end
+    @file_listing_bundle.assets.create!(
+      path: "README.txt",
+      storage_key: "bundles/#{@file_listing_bundle.id}/1/README.txt",
+      content_type: "text/plain",
+      byte_size: 256
+    )
 
     @protected_static_site = Bundle.create!(
       slug: "private-review",
@@ -140,6 +146,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "Heading", response.body
     assert_no_match "<script>", response.body
+    assert_includes response.headers.fetch("Server-Timing"), "bundle-storage-read"
+    assert_includes response.headers.fetch("Server-Timing"), "bundle-markdown-render"
+    assert_includes response.headers.fetch("Server-Timing"), "bundle-analytics-enqueue"
     assert_equal 1, @public_markdown.reload.total_views_count
     assert_equal 1, @public_markdown.bundle_views.count
   end
@@ -156,6 +165,8 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_match "Heading", response.body
       assert_includes response.headers.fetch("Cache-Control"), "public"
       assert_includes response.headers.fetch("Cache-Control"), "max-age=300"
+      assert_includes response.headers.fetch("Cache-Control"), "s-maxage=300"
+      assert_includes response.headers.fetch("Cache-Control"), "stale-while-revalidate=60"
 
       etag = response.headers.fetch("ETag")
       assert_equal [ "field-notes.md" ], fake_storage.reads
@@ -182,6 +193,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_match "Pre-rendered", response.body
       assert_match "Fast path.", response.body
+      assert_includes response.headers.fetch("Server-Timing"), "bundle-analytics-enqueue"
+      assert_not_includes response.headers.fetch("Server-Timing"), "bundle-storage-read"
+      assert_not_includes response.headers.fetch("Server-Timing"), "bundle-markdown-render"
       assert_empty fake_storage.reads
     end
   end
@@ -288,13 +302,25 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_equal 1, @static_site.bundle_views.count
   end
 
-  test "file listings only render one page of assets at a time" do
+  test "file listings render directory-aware navigation with paginated children" do
     perform_enqueued_jobs do
       get "http://assets-index.share.lvh.me/"
     end
 
     assert_response :success
+    assert_select ".bundle-item", 2
+    assert_match "All files", response.body
+    assert_match "assets/", response.body
+    assert_match "README.txt", response.body
+    assert_no_match "file-001.txt", response.body
+
+    perform_enqueued_jobs do
+      get "http://assets-index.share.lvh.me/", params: { prefix: "assets" }
+    end
+
+    assert_response :success
     assert_select ".bundle-item", 50
+    assert_match "assets", response.body
     assert_match "Page 1 of 2", response.body
     assert_no_match "file-051.txt", response.body
     assert_match "file-001.txt", response.body
@@ -302,7 +328,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_match "Next", response.body
 
     perform_enqueued_jobs do
-      get "http://assets-index.share.lvh.me/", params: { page: 2 }
+      get "http://assets-index.share.lvh.me/", params: { prefix: "assets/", page: 2 }
     end
 
     assert_response :success
@@ -312,6 +338,18 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_match "file-075.txt", response.body
     assert_no_match "file-050.txt", response.body
     assert_match "Previous", response.body
+  end
+
+  test "file listings reject invalid or missing directory prefixes" do
+    get "http://assets-index.share.lvh.me/", params: { prefix: "../private" }
+
+    assert_response :not_found
+    assert_match "Directory not found", response.body
+
+    get "http://assets-index.share.lvh.me/", params: { prefix: "missing" }
+
+    assert_response :not_found
+    assert_match "Directory not found", response.body
   end
 
   test "public asset redirects are cacheable and protected asset redirects are not" do
