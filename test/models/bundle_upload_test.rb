@@ -19,6 +19,14 @@ class BundleUploadTest < ActiveSupport::TestCase
     assert_includes upload.errors[:slug], "is reserved"
   end
 
+  test "allows multiple uploads for the same slug" do
+    first = build_upload(slug: "same-slug", ingest_key: "uploads/one")
+    second = build_upload(slug: "same-slug", ingest_key: "uploads/two")
+
+    assert first.save
+    assert second.valid?
+  end
+
   test "status predicates reflect the current state" do
     upload = build_upload
 

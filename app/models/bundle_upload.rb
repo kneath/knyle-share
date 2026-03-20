@@ -8,7 +8,6 @@ class BundleUpload < ApplicationRecord
 
   validates :slug,
     presence: true,
-    uniqueness: true,
     format: { with: /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/ }
   validates :source_kind, inclusion: { in: SOURCE_KIND_VALUES }
   validates :access_mode, inclusion: { in: ACCESS_MODE_VALUES }

@@ -513,8 +513,8 @@ Definition of done:
 Task list:
 
 - [x] Implement `BundleUpload`
-- [ ] Implement S3 ingest flow, archive processing, classification, and replacement
-- [ ] Persist published asset records and revision changes
+- [x] Implement S3 ingest flow, archive processing, classification, and replacement
+- [x] Persist published asset records and revision changes
 
 Goal:
 
