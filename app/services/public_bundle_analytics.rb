@@ -1,27 +1,34 @@
 class PublicBundleAnalytics
   def record_view!(bundle:, access_method:, request_path:, viewer_session: nil)
     viewed_at = Time.current
+    unique_viewer_increment = register_unique_viewer(bundle:, viewer_session:, viewed_at:)
 
-    bundle.with_lock do
-      unique_viewer = viewer_session.present? && !bundle.bundle_views.where(viewer_session:).exists?
+    BundleView.create!(
+      bundle:,
+      viewer_session:,
+      access_method:,
+      request_path:,
+      viewed_at:
+    )
 
-      bundle.bundle_views.create!(
-        viewer_session:,
-        access_method:,
-        request_path:,
-        viewed_at:
-      )
+    updates = { total_views_count: 1 }
+    updates[:unique_protected_viewers_count] = 1 if unique_viewer_increment
+    Bundle.update_counters(bundle.id, updates)
+    Bundle.where(id: bundle.id).update_all(last_viewed_at: viewed_at)
+  end
 
-      updates = {
-        total_views_count: bundle.total_views_count + 1,
-        last_viewed_at: viewed_at
-      }
+  private
 
-      if unique_viewer
-        updates[:unique_protected_viewers_count] = bundle.unique_protected_viewers_count + 1
-      end
+  def register_unique_viewer(bundle:, viewer_session:, viewed_at:)
+    return false if viewer_session.blank?
 
-      bundle.update!(updates)
-    end
+    BundleUniqueViewer.create!(
+      bundle:,
+      viewer_session:,
+      first_viewed_at: viewed_at
+    )
+    true
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
+    false
   end
 end

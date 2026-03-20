@@ -7,6 +7,7 @@ require "zlib"
 
 class AdminApiTest < ActionDispatch::IntegrationTest
   setup do
+    BundleUniqueViewer.delete_all
     BundleView.delete_all
     ViewerSession.delete_all
     BundleAsset.delete_all

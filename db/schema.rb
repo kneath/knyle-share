@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_20_000100) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_20_000200) do
   create_table "api_tokens", force: :cascade do |t|
     t.string "label", null: false
     t.string "token_digest", null: false
@@ -32,6 +32,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_20_000100) do
     t.datetime "updated_at", null: false
     t.index ["bundle_id", "path"], name: "index_bundle_assets_on_bundle_id_and_path", unique: true
     t.index ["bundle_id"], name: "index_bundle_assets_on_bundle_id"
+  end
+
+  create_table "bundle_unique_viewers", force: :cascade do |t|
+    t.integer "bundle_id", null: false
+    t.integer "viewer_session_id", null: false
+    t.datetime "first_viewed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["bundle_id", "viewer_session_id"], name: "index_bundle_unique_viewers_on_bundle_id_and_viewer_session_id", unique: true
+    t.index ["bundle_id"], name: "index_bundle_unique_viewers_on_bundle_id"
+    t.index ["viewer_session_id"], name: "index_bundle_unique_viewers_on_viewer_session_id"
   end
 
   create_table "bundle_uploads", force: :cascade do |t|
@@ -111,6 +122,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_20_000100) do
   end
 
   add_foreign_key "bundle_assets", "bundles"
+  add_foreign_key "bundle_unique_viewers", "bundles"
+  add_foreign_key "bundle_unique_viewers", "viewer_sessions"
   add_foreign_key "bundle_views", "bundles"
   add_foreign_key "bundle_views", "viewer_sessions"
   add_foreign_key "viewer_sessions", "bundles"

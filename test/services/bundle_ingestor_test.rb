@@ -5,6 +5,7 @@ require "zlib"
 
 class BundleIngestorTest < ActiveSupport::TestCase
   setup do
+    BundleUniqueViewer.delete_all
     BundleView.delete_all
     ViewerSession.delete_all
     BundleAsset.delete_all

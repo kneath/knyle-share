@@ -2,6 +2,7 @@ require "application_system_test_case"
 
 class PublicBundleGateSystemTest < ApplicationSystemTestCase
   setup do
+    BundleUniqueViewer.delete_all
     BundleView.delete_all
     ViewerSession.delete_all
     BundleAsset.delete_all

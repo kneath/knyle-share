@@ -16,14 +16,19 @@ module Public
         render_html_asset(entry_asset, access_method: result.access_method, viewer_session: result.viewer_session)
       when "markdown_document"
         @entry_asset = entry_asset
-        @rendered_markdown = helpers.sanitize(Commonmarker.to_html(storage.read(@entry_asset)))
         analytics.record_view!(
           bundle: @bundle,
           viewer_session: result.viewer_session,
           access_method: result.access_method,
           request_path: request.path
         )
-        render :markdown
+
+        if storage.render_markdown_inline?(@entry_asset)
+          @rendered_markdown = helpers.sanitize(Commonmarker.to_html(storage.read(@entry_asset)))
+          render :markdown
+        else
+          render :markdown_download
+        end
       when "single_download"
         @entry_asset = entry_asset
         analytics.record_view!(

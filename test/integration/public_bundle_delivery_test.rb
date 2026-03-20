@@ -2,6 +2,7 @@ require "test_helper"
 
 class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
   setup do
+    BundleUniqueViewer.delete_all
     BundleView.delete_all
     ViewerSession.delete_all
     BundleAsset.delete_all
@@ -170,9 +171,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       get "http://private-brief.share.lvh.me/download"
     end
 
-    assert_response :success
-    assert_equal "application/pdf", response.media_type
-    assert_equal "%PDF-1.7 mock", response.body
+    assert_redirected_to "https://downloads.example.test/private-brief.pdf?disposition=attachment"
   end
 
   test "password rotation invalidates existing viewer sessions and signed links" do
@@ -215,7 +214,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       get "http://design-review.share.lvh.me/assets/app.css"
     end
 
-    assert_response :success
+    assert_redirected_to "https://downloads.example.test/assets/app.css?disposition=inline"
     assert_equal 1, @static_site.reload.total_views_count
     assert_equal 1, @static_site.bundle_views.count
   end
@@ -240,10 +239,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       get "http://private-review.share.lvh.me/assets/app.js", headers: { "Sec-Fetch-Site" => "same-origin" }
     end
 
-    assert_response :success
-    assert_equal "application/javascript", response.media_type
-    assert_equal "console.log('private review');", response.body
+    assert_redirected_to "https://downloads.example.test/assets/app.js?disposition=inline"
     assert_equal 1, @protected_static_site.reload.viewer_sessions.count
+  end
+
+  test "large markdown bundles fall back to a download-oriented page" do
+    @public_markdown.assets.first.update!(byte_size: 2.megabytes)
+
+    with_stubbed_storage(
+      "field-notes.md" => "# Heading\n\nHello public bundle."
+    ) do
+      get "http://field-notes.share.lvh.me/"
+    end
+
+    assert_response :success
+    assert_match "too large to render inline", response.body
+    assert_match "View raw markdown", response.body
   end
 
   test "protected static assets reject same-site cross-subdomain requests" do
@@ -288,6 +299,14 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
         }
       rescue BundleStorage::MissingObjectError
         raise BundleStorage::MissingObjectError, asset.path
+      end
+
+      def download_url(asset, disposition:, expires_in: 5.minutes)
+        "https://downloads.example.test/#{asset.path}?disposition=#{disposition}"
+      end
+
+      def render_markdown_inline?(asset)
+        asset.byte_size <= 1.megabyte
       end
     end.new(contents)
 

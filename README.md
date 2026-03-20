@@ -123,6 +123,8 @@ AWS_ACCESS_KEY_ID=your-access-key-id
 AWS_SECRET_ACCESS_KEY=your-secret-access-key
 AWS_REGION=us-west-2
 S3_BUCKET=your-bucket-name
+PUBLIC_ASSET_REDIRECT_TTL_SECONDS=300
+INLINE_MARKDOWN_RENDER_MAX_BYTES=1048576
 GITHUB_CLIENT_ID=your-github-oauth-client-id
 GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
 ```
@@ -137,6 +139,10 @@ For the AWS S3 values:
   Use the AWS region where your bucket lives, for example `us-west-2`. This must match the bucket's region exactly or setup validation will fail with a bucket region mismatch.
 - `S3_BUCKET`
   Use the bucket name only, for example `knyle-share-files`. Do not use an S3 URL, ARN, or `s3://` prefix.
+- `PUBLIC_ASSET_REDIRECT_TTL_SECONDS`
+  Optional. How long public asset and download redirects stay valid, in seconds. The default is `300`.
+- `INLINE_MARKDOWN_RENDER_MAX_BYTES`
+  Optional. Markdown files larger than this stay downloadable, but the app stops rendering them inline. The default is `1048576` bytes.
 
 Notes:
 
@@ -223,10 +229,13 @@ Relevant production env vars:
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION`
 - `S3_BUCKET`
+- `PUBLIC_ASSET_REDIRECT_TTL_SECONDS` optional, defaults to `300`
+- `INLINE_MARKDOWN_RENDER_MAX_BYTES` optional, defaults to `1048576`
 - `GITHUB_CLIENT_ID`
 - `GITHUB_CLIENT_SECRET`
 
 The current implementation expects the S3 bucket to be reachable from the app and the GitHub OAuth callback to point at the admin host.
+Public downloads and nested assets are served by short-lived presigned S3 URLs after the app authorizes access, so the bucket stays private while large asset bodies stay off the Rails process.
 `PUBLIC_HOST` is the base public domain, not the domain of an individual bundle. Every bundle is served from `slug.PUBLIC_HOST`, so production deployments need wildcard DNS and TLS coverage for `*.PUBLIC_HOST`.
 
 For production, keep using real environment variables in Render rather than a repo-local `.env` file.

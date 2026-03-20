@@ -70,14 +70,8 @@ module Public
     end
 
     def send_asset(asset, disposition:)
-      fetched_asset = storage.fetch(asset)
-
-      send_data(
-        fetched_asset.fetch(:body),
-        filename: fetched_asset.fetch(:filename),
-        type: fetched_asset.fetch(:content_type),
-        disposition:
-      )
+      response.set_header("Referrer-Policy", "no-referrer")
+      redirect_to storage.download_url(asset, disposition:), allow_other_host: true
     end
 
     def bundle_slug

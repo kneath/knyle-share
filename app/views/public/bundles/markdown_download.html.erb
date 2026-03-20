@@ -1,0 +1,18 @@
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+
+<div class="page-centered">
+  <div class="centered-card wide">
+    <h1 style="margin-bottom: 0.25rem;"><%= @bundle.title %></h1>
+    <p class="text-muted" style="margin-bottom: 1rem;">
+      <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
+    </p>
+    <p style="margin-bottom: 1.5rem;">
+      This markdown file is too large to render inline. You can open the raw source or download it directly.
+    </p>
+
+    <div class="home-actions">
+      <a class="btn btn-secondary" href="<%= public_bundle_raw_url_for(@bundle, access_token: params[:access]) %>">View raw markdown</a>
+      <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">Download file</a>
+    </div>
+  </div>
+</div>

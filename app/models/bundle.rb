@@ -24,6 +24,7 @@ class Bundle < ApplicationRecord
   has_many :assets, class_name: "BundleAsset", dependent: :destroy
   has_many :viewer_sessions, dependent: :destroy
   has_many :bundle_views, dependent: :destroy
+  has_many :unique_viewers, class_name: "BundleUniqueViewer", dependent: :destroy
 
   validates :slug,
     presence: true,

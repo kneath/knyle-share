@@ -45,7 +45,7 @@ Relevant code:
 - [render.yaml#L17](/Users/kneath/code/kneath/knyle-share/render.yaml#L17)
 
 Current disposition:
-- Must be fixed before assuming the service is resilient on the open internet.
+- Mitigation implemented: download-style public assets now redirect to short-lived presigned S3 URLs after auth, oversized markdown stops rendering inline, and analytics use deduped unique-viewer tracking plus counter updates instead of locking the bundle row on every view.
 
 ## Will Not Address
 

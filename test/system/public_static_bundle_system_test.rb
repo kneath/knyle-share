@@ -2,6 +2,7 @@ require "application_system_test_case"
 
 class PublicStaticBundleSystemTest < ApplicationSystemTestCase
   setup do
+    BundleUniqueViewer.delete_all
     BundleView.delete_all
     ViewerSession.delete_all
     BundleAsset.delete_all
@@ -51,6 +52,14 @@ class PublicStaticBundleSystemTest < ApplicationSystemTestCase
         }
       rescue BundleStorage::MissingObjectError
         raise BundleStorage::MissingObjectError, asset.path
+      end
+
+      def download_url(asset, disposition:, expires_in: 5.minutes)
+        "https://downloads.example.test/#{asset.path}?disposition=#{disposition}"
+      end
+
+      def render_markdown_inline?(asset)
+        true
       end
     end.new(contents)
 
