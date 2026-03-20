@@ -17,7 +17,9 @@
           </h1>
           <p class="bundle-slug mono"><%= @bundle.slug %></p>
           <div class="bundle-url">
-            <code><%= public_bundle_url_for(@bundle) %></code>
+            <a href="<%= public_bundle_url_for(@bundle) %>" target="_blank" rel="noreferrer">
+              <code><%= public_bundle_url_for(@bundle) %></code>
+            </a>
           </div>
         </div>
       </div>
