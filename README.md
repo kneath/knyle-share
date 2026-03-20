@@ -10,7 +10,7 @@ Current implemented slice:
 - real admin bundle management
 - public bundle delivery with password and signed-link access
 - upload processing and publish pipeline
-- private API for the future CLI
+- private API and local CLI publishing flow
 
 ## Requirements
 
@@ -279,6 +279,42 @@ Create a token from the admin UI:
 4. Copy the plaintext token immediately. It is shown only once.
 
 If you lose the plaintext token, revoke it and create a new one. Only the digest is saved in the database.
+
+## CLI
+
+The repo now includes a local CLI at [bin/knyle-share](/Users/kneath/code/kneath/knyle-share/bin/knyle-share).
+
+First, save your admin host and token:
+
+```sh
+bin/knyle-share login
+```
+
+That writes a local CLI config file under `~/.config/knyle-share/config.json` by default. You can also override configuration with:
+
+- `KNYLE_SHARE_ADMIN_URL`
+- `KNYLE_SHARE_API_TOKEN`
+
+Basic usage:
+
+```sh
+bin/knyle-share ./site --public
+bin/knyle-share "./Summer in the Sierra.md" --protected --generate-password
+bin/knyle-share ./site --slug poke-recipes --replace --public
+```
+
+Useful flags:
+
+- `--slug SLUG`
+- `--replace`
+- `--public`
+- `--protected`
+- `--password PASSWORD`
+- `--generate-password`
+- `--link-expiration 1_day|1_week|1_month`
+- `--json`
+
+For directory uploads, the CLI automatically creates a `.tar.gz` archive before uploading it to the API.
 
 Use it like this:
 

@@ -69,7 +69,7 @@ module BundleIngest
         bucket:,
         key:,
         content_type:,
-        expires_in:
+        expires_in: expires_in.to_i
       )
     end
 
