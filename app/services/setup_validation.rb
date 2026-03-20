@@ -143,6 +143,15 @@ class SetupValidation
 
     client.head_bucket(bucket: env.fetch("S3_BUCKET"))
     build_check(:s3_bucket, "S3 bucket reachable", true, "The configured bucket is reachable.")
+  rescue Aws::S3::Errors::Http301Error => error
+    bucket_region = error.context.http_response.headers["x-amz-bucket-region"]
+    detail = if bucket_region.present?
+      "Bucket region mismatch. Update AWS_REGION to #{bucket_region.inspect}."
+    else
+      error.message
+    end
+
+    build_check(:s3_bucket, "S3 bucket reachable", false, detail)
   rescue StandardError => error
     build_check(:s3_bucket, "S3 bucket reachable", false, error.message)
   end
@@ -173,11 +182,7 @@ class SetupValidation
 
   def client
     @client ||= begin
-      @s3_client || Aws::S3::Client.new(
-        access_key_id: env.fetch("AWS_ACCESS_KEY_ID"),
-        secret_access_key: env.fetch("AWS_SECRET_ACCESS_KEY"),
-        region: env.fetch("AWS_REGION")
-      )
+      @s3_client || Aws::S3::Client.new(**AwsClientOptions.s3(env:))
     end
   end
 end

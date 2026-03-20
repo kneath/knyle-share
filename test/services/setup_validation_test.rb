@@ -1,8 +1,18 @@
 require "test_helper"
 require "stringio"
+require "aws-sdk-s3"
 
 class SetupValidationTest < ActiveSupport::TestCase
   FakeMigrationContext = Struct.new(:needs_migration?)
+
+  class FakeHttp301Error < Aws::S3::Errors::Http301Error
+    def initialize(region:)
+      @fake_context = Struct.new(:http_response).new(
+        Struct.new(:headers).new({ "x-amz-bucket-region" => region })
+      )
+      super(@fake_context, "Moved Permanently")
+    end
+  end
 
   class FakeS3Client
     attr_reader :objects
@@ -69,6 +79,18 @@ class SetupValidationTest < ActiveSupport::TestCase
     assert_includes result.checks.find { |check| check.key == :environment }.detail, "GITHUB_CLIENT_SECRET"
     assert_includes result.checks.find { |check| check.key == :database }.detail, "Pending migrations"
     assert_includes result.checks.find { |check| check.key == :s3_config }.detail, "S3_BUCKET"
+  end
+
+  test "reports bucket region mismatches clearly" do
+    result = SetupValidation.new(
+      env: required_env,
+      database_connection: FakeConnection.new,
+      migration_context: FakeMigrationContext.new(false),
+      s3_client: FakeS3Client.new(head_bucket_error: FakeHttp301Error.new(region: "us-east-2"))
+    ).call
+
+    assert_not result.passed?
+    assert_equal 'Bucket region mismatch. Update AWS_REGION to "us-east-2".', result.checks.find { |check| check.key == :s3_bucket }.detail
   end
 
   private
