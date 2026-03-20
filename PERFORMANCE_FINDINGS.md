@@ -44,8 +44,10 @@ Actionable fix:
 1. Separate public and protected bundle delivery strategies.
 2. For public bundles, serve stable immutable asset URLs keyed by `content_revision`, ideally through a CDN or object-storage host, with `Cache-Control: public, max-age=31536000, immutable`.
 3. For protected bundles, keep the request URL stable and either proxy bytes through Rails with `ETag` plus `Cache-Control: private, max-age=...`, or make the redirect response itself explicitly cacheable for a short TTL keyed to `access_revision`.
-4. If presigned redirects remain, add `response_cache_control` in `BundleStorage#download_url` and explicit cache headers on the 302 response. Right now the response only sets `Referrer-Policy`.
-5. Add tests that assert repeat requests for unchanged assets reuse cacheable URLs or cacheable redirect responses.
+4. Do not make protected-bundle redirect responses cacheable unless the cache key is explicitly bound to the current auth state. A cached 302 that points at a bearer-style presigned URL can accidentally bypass the access check for later requests.
+5. If presigned redirects remain for public bundles, add `response_cache_control` in `BundleStorage#download_url` and explicit cache headers on the 302 response. Right now the response only sets `Referrer-Policy`.
+6. For protected bundles, prefer non-cacheable redirects or a private proxy path over a cacheable redirect response.
+7. Add tests that assert repeat requests for unchanged public assets reuse cacheable URLs or cacheable redirect responses without changing protected-bundle authorization semantics.
 
 ### P1. Public HTML and markdown pages pay full origin cost on every request
 
@@ -65,11 +67,12 @@ Why this matters:
 
 Actionable fix:
 
-1. Pre-render sanitized markdown at ingest time and store the rendered HTML alongside the source asset, or persist it in the database keyed by asset checksum.
+1. Pre-render sanitized markdown at ingest time and store the rendered HTML alongside the source asset, or persist it in the database keyed by asset checksum plus an explicit sanitizer/renderer version so tightened policies can invalidate old renders.
 2. Serve public HTML and markdown with `fresh_when` or `stale?` using `bundle.id`, `bundle.content_revision`, `asset.checksum`, and `last_replaced_at`.
 3. For public documents, add explicit cache semantics that allow CDN and browser revalidation, for example `public, s-maxage=...` plus `stale-while-revalidate`.
 4. For protected documents, use `private` caching with conditional requests so returning viewers can get 304s without bypassing access control.
-5. Move analytics recording off the critical response path for document views, or at minimum batch the counter updates asynchronously.
+5. Any protected-document validator must include revocation state such as `access_revision`, `access_mode`, and disabled status in addition to content identity. Content-only validators are not enough once password rotation and disablement are revocation boundaries.
+6. Move analytics recording off the critical response path for document views, or at minimum batch the counter updates asynchronously.
 
 ### P2. File listings render the entire bundle in one HTML response
 
@@ -154,7 +157,7 @@ Actionable fix:
 
 These are not separate code findings, but they matter if the goal is fast delivery under both strong and weak network conditions.
 
-- Put the public bundle host behind a CDN or edge cache. `config/environments/production.rb:28-29` leaves `config.asset_host` unused, and public document delivery currently depends heavily on origin performance.
+- Put the public bundle host behind a CDN or edge cache for public bundle traffic, but explicitly bypass caching for protected responses, password-gate pages, signed-link flows, and auth-sensitive redirects. `config/environments/production.rb:28-29` leaves `config.asset_host` unused, and public document delivery currently depends heavily on origin performance.
 - Verify Brotli or gzip for HTML, CSS, and JS at the edge. Do not assume the hosting platform is doing the right thing without measurement.
 - Expose server timing for S3 fetch time, markdown render time, and analytics write time so regressions are visible in the browser.
 - Keep the public path simple. The current architecture is light on JS, which is good. Preserve that advantage while improving cache behavior.
@@ -181,3 +184,4 @@ These are not separate code findings, but they matter if the goal is fast delive
 - Do not add a client-heavy frontend framework to chase performance here.
 - Do not spend time micro-optimizing the existing tiny icon files or inline text before the cache and TTFB issues are fixed.
 - Do not keep expanding `application.css` as a global dumping ground. That pattern is cheap now and expensive later.
+- Do not introduce shared CDN caching or cacheable protected redirects without an explicit protected-content strategy. The performance win is not worth weakening the access boundary.
