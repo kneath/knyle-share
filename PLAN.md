@@ -445,9 +445,9 @@ Definition of done:
 
 Task list:
 
-- [ ] Add `Bundle`, `BundleAsset`, `ViewerSession`, and `BundleView`
-- [ ] Build the real bundle list, detail page, and signed-link screen
-- [ ] Implement enable/disable, password change, delete, and expiring-link generation
+- [x] Add `Bundle`, `BundleAsset`, `ViewerSession`, and `BundleView`
+- [x] Build the real bundle list, detail page, and signed-link screen
+- [x] Implement enable/disable, password change, delete, and expiring-link generation
 
 Goal:
 

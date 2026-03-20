@@ -1,4 +1,4 @@
-<% content_for :title, "#{@bundle[:slug]} · Knyle Share" %>
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
 
 <div class="page">
   <%= render "admin/shared/header" %>
@@ -6,17 +6,18 @@
   <main>
     <div class="container">
       <div class="breadcrumb">
-        <a href="<%= admin_bundles_path %>">Bundles</a> / <%= @bundle[:slug] %>
+        <a href="<%= admin_bundles_path %>">Bundles</a> / <%= @bundle.slug %>
       </div>
 
       <div class="page-title">
         <div>
           <h1>
-            <%= @bundle[:slug] %>
-            <span class="badge"><%= @bundle[:presentation_label] %></span>
+            <%= @bundle.title %>
+            <span class="badge"><%= @bundle.presentation_label %></span>
           </h1>
+          <p class="bundle-slug mono"><%= @bundle.slug %></p>
           <div class="bundle-url">
-            <code><%= @bundle[:bundle_url] %></code>
+            <code><%= public_bundle_url_for(@bundle) %></code>
           </div>
         </div>
       </div>
@@ -24,19 +25,20 @@
       <div class="stat-row">
         <div class="stat">
           <div class="stat-label">Total Views</div>
-          <div class="stat-value"><%= @bundle[:views].split.first %></div>
+          <div class="stat-value"><%= @bundle.total_views_count %></div>
+          <div class="stat-detail"><%= bundle_views_label(@bundle) %></div>
         </div>
         <div class="stat">
           <div class="stat-label">Unique Viewers</div>
-          <div class="stat-value"><%= @bundle[:unique_viewers] %></div>
+          <div class="stat-value"><%= bundle_unique_viewers_label(@bundle) %></div>
         </div>
         <div class="stat">
           <div class="stat-label">Last Viewed</div>
-          <div class="stat-value"><%= @bundle[:last_viewed] %></div>
+          <div class="stat-value"><%= bundle_last_viewed_label(@bundle) %></div>
         </div>
         <div class="stat">
           <div class="stat-label">Created</div>
-          <div class="stat-value"><%= @bundle[:created_at] %></div>
+          <div class="stat-value"><%= bundle_created_label(@bundle) %></div>
         </div>
       </div>
 
@@ -46,27 +48,20 @@
         <div class="detail-row">
           <span class="detail-label">Status</span>
           <span class="detail-value">
-            <span class="badge <%= @bundle[:status_class] %>"><%= @bundle[:status_label] %></span>
+            <span class="badge <%= @bundle.status_badge_class %>"><%= @bundle.status_label %></span>
           </span>
         </div>
 
         <div class="detail-row">
           <span class="detail-label">Access</span>
           <span class="detail-value">
-            <span class="badge <%= @bundle[:access_class] %>"><%= @bundle[:access_label] %></span>
-          </span>
-        </div>
-
-        <div class="detail-row">
-          <span class="detail-label">Password</span>
-          <span class="detail-value">
-            <%= @bundle[:password].present? ? content_tag(:code, @bundle[:password]) : "Not required" %>
+            <span class="badge <%= @bundle.access_badge_class %>"><%= @bundle.access_label %></span>
           </span>
         </div>
 
         <div class="detail-row">
           <span class="detail-label">Session duration</span>
-          <span class="detail-value">24 hours</span>
+          <span class="detail-value"><%= distance_of_time_in_words(0, @bundle.password_session_ttl_seconds) %></span>
         </div>
       </div>
 
@@ -75,39 +70,77 @@
 
         <div class="detail-row">
           <span class="detail-label">Source</span>
-          <span class="detail-value"><%= @bundle[:source_label] %></span>
+          <span class="detail-value"><%= @bundle.source_label %></span>
         </div>
 
         <div class="detail-row">
           <span class="detail-label">Size</span>
-          <span class="detail-value"><%= @bundle[:size] %></span>
+          <span class="detail-value"><%= bundle_size_label(@bundle) %></span>
         </div>
 
         <div class="detail-row">
           <span class="detail-label">Files</span>
-          <span class="detail-value"><%= @bundle[:files] %></span>
+          <span class="detail-value"><%= pluralize(@bundle.asset_count, "file") %></span>
         </div>
 
         <div class="detail-row">
           <span class="detail-label">Last replaced</span>
-          <span class="detail-value"><%= @bundle[:last_replaced] %></span>
+          <span class="detail-value"><%= bundle_last_replaced_label(@bundle) %></span>
         </div>
       </div>
+
+      <% if @bundle.protected_access? %>
+        <div class="detail-section">
+          <h2>Password</h2>
+
+          <div class="detail-copy">
+            <p class="text-muted">
+              Passwords are stored securely. Replace the current password with a generated three-word phrase or enter your own custom password.
+            </p>
+          </div>
+
+          <% if @generated_password.present? %>
+            <div class="generated-secret">
+              <div class="detail-label">New password</div>
+              <code><%= @generated_password %></code>
+            </div>
+          <% end %>
+
+          <%= form_with url: admin_bundle_password_path(@bundle), method: :patch, class: "stack-form" do |form| %>
+            <div class="field-group">
+              <%= form.label :password, "Custom password" %>
+              <%= form.text_field :password, name: "bundle[password]", class: "text-input", autocomplete: "off", spellcheck: false %>
+              <p class="field-note">Leave this blank and use the generated option if you want a three-word password.</p>
+            </div>
+
+            <div class="button-row">
+              <button class="btn btn-primary" type="submit" name="password_strategy" value="generated">Generate new password</button>
+              <button class="btn btn-secondary" type="submit" name="password_strategy" value="custom">Save custom password</button>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
 
       <div class="detail-section">
         <h2>Actions</h2>
 
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-          <a href="<%= admin_bundle_link_path(@bundle[:slug]) %>" class="btn btn-primary">Generate expiring link</a>
-          <button class="btn btn-secondary" type="button">Change password</button>
-          <button class="btn btn-secondary" type="button">Disable bundle</button>
+        <div class="button-row">
+          <% if @bundle.protected_access? %>
+            <a href="<%= admin_bundle_link_path(@bundle) %>" class="btn btn-primary">Generate expiring link</a>
+          <% end %>
+
+          <%= form_with url: admin_bundle_status_path(@bundle), method: :patch, class: "inline-form" do %>
+            <button class="btn btn-secondary" type="submit"><%= @bundle.active? ? "Disable bundle" : "Enable bundle" %></button>
+          <% end %>
         </div>
       </div>
 
       <div class="danger-zone">
         <h3>Danger Zone</h3>
         <p>Permanently delete this bundle and all its files. This action cannot be undone.</p>
-        <button class="btn btn-danger" type="button">Delete bundle</button>
+        <%= form_with url: admin_bundle_path(@bundle), method: :delete do %>
+          <button class="btn btn-danger" type="submit" data-turbo-confirm="Delete this bundle permanently?">Delete bundle</button>
+        <% end %>
       </div>
     </div>
   </main>

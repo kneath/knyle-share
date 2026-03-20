@@ -6,31 +6,43 @@
   <main>
     <div class="container">
       <div class="page-title">
-        <h1>Bundles <span class="count"><%= @bundles.length %></span></h1>
+        <h1>Bundles <span class="count"><%= @bundles.size %></span></h1>
       </div>
 
-      <div class="card">
-        <ul class="bundle-list">
-          <% @bundles.each do |bundle| %>
-            <li>
-              <a href="<%= admin_bundle_path(bundle[:slug]) %>" class="bundle-item <%= "is-disabled" if bundle[:status_label] == "Disabled" %>">
-                <div>
-                  <div class="bundle-name"><%= bundle[:slug] %></div>
-                  <div class="bundle-meta">
-                    <span class="badge"><%= bundle[:presentation_label] %></span>
-                    <span class="badge <%= bundle[:access_class] %>"><%= bundle[:access_label] %></span>
-                    <span class="badge <%= bundle[:status_class] %>"><%= bundle[:status_label] %></span>
+      <% if @bundles.any? %>
+        <div class="card">
+          <ul class="bundle-list">
+            <% @bundles.each do |bundle| %>
+              <li>
+                <a href="<%= admin_bundle_path(bundle) %>" class="bundle-item <%= "is-disabled" if bundle.disabled? %>">
+                  <div>
+                    <div class="bundle-name"><%= bundle.title %></div>
+                    <div class="bundle-slug mono"><%= bundle.slug %></div>
+                    <div class="bundle-meta">
+                      <span class="badge"><%= bundle.presentation_label %></span>
+                      <span class="badge <%= bundle.access_badge_class %>"><%= bundle.access_label %></span>
+                      <span class="badge <%= bundle.status_badge_class %>"><%= bundle.status_label %></span>
+                    </div>
                   </div>
-                </div>
-                <div class="bundle-stats">
-                  <div class="views"><%= bundle[:views] %></div>
-                  <div class="last-viewed"><%= bundle[:last_viewed] %></div>
-                </div>
-              </a>
-            </li>
-          <% end %>
-        </ul>
-      </div>
+                  <div class="bundle-stats">
+                    <div class="views"><%= bundle_views_label(bundle) %></div>
+                    <div class="last-viewed"><%= bundle_last_viewed_label(bundle) %></div>
+                  </div>
+                </a>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      <% else %>
+        <div class="card empty-state">
+          <h2>No bundles yet</h2>
+          <p class="text-muted">
+            The admin shell is wired to the database now, but there is no upload flow yet. Run
+            <code>bin/rails db:seed</code>
+            if you want sample bundles to work against while Milestone 3 is in progress.
+          </p>
+        </div>
+      <% end %>
     </div>
   </main>
 </div>

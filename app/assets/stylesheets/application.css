@@ -358,6 +358,12 @@ button,
   color: var(--color-text);
 }
 
+.bundle-slug {
+  margin-top: 0.2rem;
+  color: var(--color-muted);
+  font-size: 0.87rem;
+}
+
 .bundle-meta {
   display: flex;
   flex-wrap: wrap;
@@ -446,6 +452,10 @@ button,
 
 .detail-section + .detail-section,
 .detail-section + .danger-zone {
+  margin-top: 1rem;
+}
+
+.detail-copy {
   margin-top: 1rem;
 }
 
@@ -562,6 +572,10 @@ button,
   border-radius: var(--radius-md);
 }
 
+.copy-box code {
+  overflow-wrap: anywhere;
+}
+
 .pill-group {
   display: flex;
   flex-wrap: wrap;
@@ -583,6 +597,60 @@ button,
 .pill.is-selected {
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+.empty-state h2 {
+  margin-bottom: 0.5rem;
+}
+
+.stack-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.field-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field-group label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.field-note {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.text-input {
+  width: 100%;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.generated-secret {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.generated-secret code {
+  display: inline-block;
+  margin-top: 0.35rem;
 }
 
 .mb-1 {
@@ -633,7 +701,8 @@ button,
 
   .bundle-item,
   .detail-row,
-  .copy-box {
+  .copy-box,
+  .button-row {
     flex-direction: column;
     align-items: flex-start;
   }

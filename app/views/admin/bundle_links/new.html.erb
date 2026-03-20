@@ -6,7 +6,9 @@
   <main>
     <div class="container">
       <div class="breadcrumb">
-        <a href="<%= admin_bundles_path %>">Bundles</a> / <a href="<%= admin_bundle_path(@bundle[:slug]) %>"><%= @bundle[:slug] %></a> / Generate link
+        <a href="<%= admin_bundles_path %>">Bundles</a> /
+        <a href="<%= admin_bundle_path(@bundle) %>"><%= @bundle.slug %></a> /
+        Generate link
       </div>
 
       <div class="page-title">
@@ -14,32 +16,39 @@
       </div>
 
       <p class="text-muted mb-2">
-        Create a link that grants access to <strong style="color: var(--color-text);"><%= @bundle[:slug] %></strong> without requiring a password. The link will expire after the chosen duration.
+        Create a link that grants access to <strong style="color: var(--color-text);"><%= @bundle.slug %></strong> without requiring a password. The link will expire after the chosen duration.
       </p>
 
       <div class="detail-section">
         <h2>Choose expiration</h2>
-        <div class="pill-group mt-1">
-          <button class="pill" type="button">1 day</button>
-          <button class="pill is-selected" type="button">1 week</button>
-          <button class="pill" type="button">1 month</button>
-        </div>
+        <p class="text-muted mt-1">Each button generates a new signed URL with the selected expiration.</p>
 
-        <div class="mt-3">
-          <button class="btn btn-primary" type="button">Generate link</button>
-        </div>
+        <%= form_with url: admin_bundle_link_path(@bundle), method: :post, class: "stack-form mt-2" do %>
+          <div class="pill-group">
+            <% @expiration_presets.each do |key, preset| %>
+              <button class="pill <%= "is-selected" if @selected_preset == key %>" type="submit" name="expires_in" value="<%= key %>">
+                <%= preset.fetch(:label) %>
+              </button>
+            <% end %>
+          </div>
+        <% end %>
       </div>
 
       <div class="detail-section">
         <h2>Your expiring link</h2>
-        <p class="text-muted mb-1" style="font-size: 0.87rem;">
-          This placeholder link expires in 1 week. Milestone 3 will replace this page with a real signed-link form backed by the app.
-        </p>
+        <% if @generated_link.present? %>
+          <p class="text-muted mb-1">
+            This link expires <%= time_tag(@expires_at, @expires_at.strftime("%b %-d, %Y at %-I:%M %p")) %>.
+          </p>
 
-        <div class="copy-box">
-          <code><%= "#{@bundle[:bundle_url]}?access=placeholder-signed-token" %></code>
-          <button class="btn btn-secondary" type="button">Copy</button>
-        </div>
+          <div class="copy-box">
+            <code><%= @generated_link %></code>
+          </div>
+        <% else %>
+          <p class="text-muted mb-1">
+            No link generated yet. Choose one of the expiration presets above to mint a signed link.
+          </p>
+        <% end %>
       </div>
     </div>
   </main>

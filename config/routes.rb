@@ -15,7 +15,11 @@ Rails.application.routes.draw do
       post "logout", to: "sessions#destroy", as: :logout
       get "bundles", to: "bundles#index", as: :bundles
       get "bundles/:id", to: "bundles#show", as: :bundle
+      patch "bundles/:id/status", to: "bundles#update_status", as: :bundle_status
+      patch "bundles/:id/password", to: "bundles#update_password", as: :bundle_password
+      delete "bundles/:id", to: "bundles#destroy"
       get "bundles/:bundle_id/link", to: "bundle_links#new", as: :bundle_link
+      post "bundles/:bundle_id/link", to: "bundle_links#create"
     end
   end
 
