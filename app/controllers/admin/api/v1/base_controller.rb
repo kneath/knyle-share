@@ -42,9 +42,12 @@ module Admin
         end
 
         def public_bundle_url_for(bundle, access_token: nil)
-          uri = URI::Generic.build(scheme: request.protocol.delete_suffix("://"), host: public_host, path: "/#{bundle.slug}")
-          uri.query = access_token.present? ? { access: access_token }.to_query : nil
-          uri.to_s
+          PublicBundleRouting.bundle_url(
+            bundle:,
+            public_host:,
+            base_url: request.base_url,
+            access_token:
+          )
         end
 
         def render_not_found(error)

@@ -11,7 +11,7 @@
         <ul class="bundle-list">
           <% @assets.each do |asset| %>
             <li>
-              <a class="bundle-item" href="<%= public_bundle_asset_path(slug: @bundle.slug, asset_path: asset.path, access: params[:access]) %>">
+              <a class="bundle-item" href="<%= public_bundle_asset_url_for(@bundle, asset_path: asset.path, access_token: params[:access]) %>">
                 <div>
                   <div class="bundle-name"><%= public_bundle_file_name(asset) %></div>
                   <div class="bundle-slug mono"><%= asset.path %></div>

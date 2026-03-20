@@ -3,7 +3,7 @@ module Public
     private
 
     def set_bundle
-      @bundle = Bundle.find_by!(slug: params[:slug])
+      @bundle = Bundle.find_by!(slug: bundle_slug)
     end
 
     def entry_asset
@@ -43,10 +43,18 @@ module Public
         @access_message = result.message
         render "public/bundles/protected", status: result.message.present? ? :unauthorized : :ok
       else
-        redirect_to public_bundle_path(slug: @bundle.slug), alert: result.message.presence || "This bundle is protected."
+        redirect_to public_bundle_url_for(@bundle), alert: result.message.presence || "This bundle is protected.", allow_other_host: true
       end
 
       nil
+    end
+
+    def ensure_bundle_host!(url:)
+      expected_host = PublicBundleRouting.host_for(bundle: @bundle, public_host:)
+      return true if request.host.downcase == expected_host
+
+      redirect_to url, allow_other_host: true
+      false
     end
 
     def render_html_asset(asset, access_method:, viewer_session: nil)
@@ -70,6 +78,13 @@ module Public
         type: fetched_asset.fetch(:content_type),
         disposition:
       )
+    end
+
+    def bundle_slug
+      slug = params[:slug].presence || PublicBundleRouting.slug_from_host(host: request.host, public_host:)
+      raise ActiveRecord::RecordNotFound, "Bundle not found" if slug.blank?
+
+      slug
     end
   end
 end

@@ -1,4 +1,8 @@
 require_relative "boot"
+require_relative "../lib/public_bundle_routing"
+require_relative "../lib/bundle_subdomain_static"
+require_relative "../lib/host_constraint"
+require_relative "../lib/bundle_subdomain_host_constraint"
 
 require "rails"
 # Pick the frameworks you want:
@@ -35,6 +39,7 @@ module KnyleShare
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+    config.assets.prefix = "/app-assets"
     config.middleware.use Rack::Attack
   end
 end

@@ -17,6 +17,7 @@ Relevant code:
 
 Current disposition:
 - Must be fixed before treating `static_site` bundles as safe on a public deployment.
+- Mitigation implemented: all bundles now use isolated `slug.PUBLIC_HOST` subdomains, and protected nested asset requests are restricted to same-origin fetches.
 
 ### 4. Password Rotation Does Not Revoke Existing Access
 

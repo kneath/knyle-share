@@ -17,6 +17,13 @@ Rails.application.configure do
 
   # Cache assets for far-future expiry since they are all digest stamped.
   config.public_file_server.headers = { "cache-control" => "public, max-age=#{1.year.to_i}" }
+  config.middleware.swap(
+    ActionDispatch::Static,
+    BundleSubdomainStatic,
+    config.paths["public"].first,
+    index: "index",
+    headers: config.public_file_server.headers
+  )
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
@@ -78,6 +85,11 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [ :id ]
 
   # Enable DNS rebinding protection and other `Host` header attacks.
-  config.hosts = [admin_host, public_host].compact
+  allowed_hosts = [admin_host, public_host].compact
+  if public_host.present?
+    allowed_hosts << /\A[a-z0-9-]+\.#{Regexp.escape(public_host)}(?::\d+)?\z/i
+  end
+
+  config.hosts = allowed_hosts
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

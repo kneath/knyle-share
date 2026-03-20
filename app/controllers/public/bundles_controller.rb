@@ -1,8 +1,13 @@
 module Public
   class BundlesController < BaseController
+    skip_forgery_protection only: :asset
+
     before_action :set_bundle
+    before_action :ensure_protected_static_asset_request_is_same_origin!, only: :asset
 
     def show
+      return unless ensure_bundle_host!(url: public_bundle_url_for(@bundle, access_token: params[:access]))
+
       result = ensure_bundle_access!(allow_password_gate: true)
       return unless result
 
@@ -45,6 +50,8 @@ module Public
     end
 
     def raw
+      return unless ensure_bundle_host!(url: public_bundle_raw_url_for(@bundle, access_token: params[:access]))
+
       result = ensure_bundle_access!
       return unless result
 
@@ -59,6 +66,8 @@ module Public
     end
 
     def download
+      return unless ensure_bundle_host!(url: public_bundle_download_url_for(@bundle, access_token: params[:access]))
+
       result = ensure_bundle_access!
       return unless result
 
@@ -73,6 +82,8 @@ module Public
     end
 
     def asset
+      return unless ensure_bundle_host!(url: public_bundle_asset_url_for(@bundle, asset_path: requested_asset_path, access_token: params[:access]))
+
       result = ensure_bundle_access!
       return unless result
 
@@ -96,6 +107,15 @@ module Public
 
     def requested_asset_path
       [params[:asset_path], params[:format]].compact.join(".")
+    end
+
+    def ensure_protected_static_asset_request_is_same_origin!
+      return unless @bundle.static_site? && @bundle.protected_access?
+
+      fetch_site = request.get_header("HTTP_SEC_FETCH_SITE").to_s
+      return if %w[same-origin none].include?(fetch_site)
+
+      render plain: "Bundle asset not found.", status: :not_found
     end
   end
 end

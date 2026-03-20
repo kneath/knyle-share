@@ -64,6 +64,29 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       byte_size: 256
     )
 
+    @protected_static_site = Bundle.create!(
+      slug: "private-review",
+      title: "Private Review",
+      source_kind: "directory",
+      presentation_kind: "static_site",
+      access_mode: "protected",
+      status: "active",
+      password: "river maple lantern",
+      entry_path: "index.html"
+    )
+    @protected_static_site.assets.create!(
+      path: "index.html",
+      storage_key: "bundles/#{@protected_static_site.id}/1/index.html",
+      content_type: "text/html",
+      byte_size: 512
+    )
+    @protected_static_site.assets.create!(
+      path: "assets/app.js",
+      storage_key: "bundles/#{@protected_static_site.id}/1/assets/app.js",
+      content_type: "application/javascript",
+      byte_size: 128
+    )
+
     @disabled_bundle = Bundle.create!(
       slug: "retired-plan",
       title: "Retired Plan",
@@ -82,10 +105,14 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
   end
 
   test "public markdown bundles render immediately and count document views" do
+    get public_bundle_url(slug: @public_markdown.slug, host: "share.lvh.me")
+
+    assert_redirected_to "http://field-notes.share.lvh.me/"
+
     with_stubbed_storage(
       "field-notes.md" => "# Heading\n\nHello public bundle.\n\n<script>alert('x')</script>"
     ) do
-      get public_bundle_url(slug: @public_markdown.slug, host: "share.lvh.me")
+      get "http://field-notes.share.lvh.me/"
     end
 
     assert_response :success
@@ -98,13 +125,17 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
   test "protected bundles require a password and create a viewer session" do
     get public_bundle_url(slug: @protected_download.slug, host: "share.lvh.me")
 
+    assert_redirected_to "http://private-brief.share.lvh.me/"
+
+    get "http://private-brief.share.lvh.me/"
+
     assert_response :success
     assert_match "This bundle is protected", response.body
 
     with_stubbed_storage(
       "private-brief.pdf" => "%PDF-1.7 mock"
     ) do
-      post public_bundle_access_url(slug: @protected_download.slug, host: "share.lvh.me"), params: { password: "river maple lantern" }
+      post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
       follow_redirect!
     end
 
@@ -118,7 +149,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     token = BundleAccessLink.generate(bundle: @protected_download, expires_in: 1.minute)
 
     travel 2.minutes do
-      get public_bundle_url(slug: @protected_download.slug, host: "share.lvh.me", access: token)
+      get "http://private-brief.share.lvh.me/", params: { access: token }
     end
 
     assert_response :unauthorized
@@ -131,12 +162,12 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     with_stubbed_storage(
       "private-brief.pdf" => "%PDF-1.7 mock"
     ) do
-      get public_bundle_url(slug: @protected_download.slug, host: "share.lvh.me", access: token)
+      get "http://private-brief.share.lvh.me/", params: { access: token }
       assert_response :success
       assert_match "Download file", response.body
       assert_equal 1, @protected_download.reload.viewer_sessions.count
 
-      get public_download_bundle_url(slug: @protected_download.slug, host: "share.lvh.me")
+      get "http://private-brief.share.lvh.me/download"
     end
 
     assert_response :success
@@ -144,13 +175,19 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_equal "%PDF-1.7 mock", response.body
   end
 
-  test "static-site html counts as a view but css assets do not" do
+  test "static-site bundle paths on the shared host redirect to the isolated bundle host" do
+    get public_bundle_url(slug: @static_site.slug, host: "share.lvh.me")
+
+    assert_redirected_to "http://design-review.share.lvh.me/"
+  end
+
+  test "static-site html counts as a view but css assets do not on the isolated host" do
     with_stubbed_storage(
       "index.html" => "<h1>Review</h1>",
       "assets/app.css" => "body { color: red; }"
     ) do
-      get public_bundle_url(slug: @static_site.slug, host: "share.lvh.me")
-      get public_bundle_asset_url(slug: @static_site.slug, asset_path: "assets/app.css", host: "share.lvh.me")
+      get "http://design-review.share.lvh.me/"
+      get "http://design-review.share.lvh.me/assets/app.css"
     end
 
     assert_response :success
@@ -158,8 +195,51 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_equal 1, @static_site.bundle_views.count
   end
 
+  test "protected static sites establish an isolated-host viewer session that covers nested assets" do
+    with_stubbed_storage(
+      "index.html" => "<h1>Private Review</h1>",
+      "assets/app.js" => "console.log('private review');"
+    ) do
+      get "http://private-review.share.lvh.me/"
+
+      assert_response :success
+      assert_match "This bundle is protected", response.body
+
+      post "http://private-review.share.lvh.me/access", params: { password: "river maple lantern" }
+      assert_redirected_to "http://private-review.share.lvh.me/"
+
+      follow_redirect!
+      assert_response :success
+      assert_match "Private Review", response.body
+
+      get "http://private-review.share.lvh.me/assets/app.js", headers: { "Sec-Fetch-Site" => "same-origin" }
+    end
+
+    assert_response :success
+    assert_equal "application/javascript", response.media_type
+    assert_equal "console.log('private review');", response.body
+    assert_equal 1, @protected_static_site.reload.viewer_sessions.count
+  end
+
+  test "protected static assets reject same-site cross-subdomain requests" do
+    with_stubbed_storage(
+      "index.html" => "<h1>Private Review</h1>",
+      "assets/app.js" => "console.log('private review');"
+    ) do
+      post "http://private-review.share.lvh.me/access", params: { password: "river maple lantern" }
+
+      get "http://private-review.share.lvh.me/assets/app.js", headers: { "Sec-Fetch-Site" => "same-site" }
+    end
+
+    assert_response :not_found
+  end
+
   test "disabled bundles render unavailable" do
     get public_bundle_url(slug: @disabled_bundle.slug, host: "share.lvh.me")
+
+    assert_redirected_to "http://retired-plan.share.lvh.me/"
+
+    get "http://retired-plan.share.lvh.me/"
 
     assert_response :gone
     assert_match "Bundle unavailable", response.body

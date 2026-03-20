@@ -36,6 +36,16 @@ Rails.application.routes.draw do
     end
   end
 
+  constraints BundleSubdomainHostConstraint.new(public_host) do
+    scope module: :public do
+      get "/", to: "bundles#show", as: :public_static_bundle
+      post "access", to: "access#create", as: :public_static_bundle_access
+      get "raw", to: "bundles#raw", as: :public_static_bundle_raw
+      get "download", to: "bundles#download", as: :public_static_bundle_download
+      get "/*asset_path", to: "bundles#asset", as: :public_static_bundle_asset
+    end
+  end
+
   constraints HostConstraint.new(public_host) do
     namespace :public, path: "/" do
       root "home#show", as: :root

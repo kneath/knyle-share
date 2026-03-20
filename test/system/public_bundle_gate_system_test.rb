@@ -22,6 +22,7 @@ class PublicBundleGateSystemTest < ApplicationSystemTestCase
   test "protected bundles render the password gate and reject a bad password" do
     visit "http://share.lvh.me:4010/private-brief"
 
+    assert_equal "http://private-brief.share.lvh.me:4010/", page.current_url
     assert_text "This bundle is protected"
 
     fill_in "Shared password", with: "wrong password"

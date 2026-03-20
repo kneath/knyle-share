@@ -137,7 +137,7 @@ class AdminApiTest < ActionDispatch::IntegrationTest
 
     assert_response :created
     link = JSON.parse(response.body)
-    assert_match %r{\Ahttps?://share\.lvh\.me/private-brief\?access=}, link["url"]
+    assert_match %r{\Ahttps?://private-brief\.share\.lvh\.me/\?access=}, link["url"]
   end
 
   private

@@ -55,7 +55,7 @@ class PublicViewerSessionManager
   end
 
   def cookie_path(bundle)
-    "/#{bundle.slug}"
+    "/"
   end
 
   def digest(raw_token)

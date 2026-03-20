@@ -3,12 +3,14 @@ module Public
     before_action :set_bundle
 
     def create
+      return unless ensure_bundle_host!(url: public_bundle_url_for(@bundle),)
+
       unless ensure_bundle_is_available!
         return
       end
 
       if @bundle.public_access?
-        redirect_to public_bundle_path(slug: @bundle.slug)
+        redirect_to public_bundle_url_for(@bundle), allow_other_host: true
         return
       end
 
@@ -26,7 +28,7 @@ module Public
         viewer_session_manager.establish!(bundle: @bundle)
       end
 
-      redirect_to public_bundle_path(slug: @bundle.slug), notice: "Access granted."
+      redirect_to public_bundle_url_for(@bundle), notice: "Access granted.", allow_other_host: true
     end
   end
 end

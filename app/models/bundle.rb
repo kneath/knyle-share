@@ -59,6 +59,10 @@ class Bundle < ApplicationRecord
     access_mode == "protected"
   end
 
+  def static_site?
+    presentation_kind == "static_site"
+  end
+
   def source_label
     SOURCE_KIND_LABELS.fetch(source_kind)
   end

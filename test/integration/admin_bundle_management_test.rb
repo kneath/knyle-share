@@ -97,7 +97,7 @@ class AdminBundleManagementTest < ActionDispatch::IntegrationTest
     post admin_bundle_link_url(@protected_bundle, host: "admin.lvh.me"), params: { expires_in: "1_week" }
 
     assert_response :success
-    assert_match "share.lvh.me/poke-recipes?access=", response.body
+    assert_match "poke-recipes.share.lvh.me/?access=", response.body
   end
 
   test "bundle deletion removes the record" do
