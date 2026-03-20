@@ -1,12 +1,74 @@
-<div class="page-centered">
-  <div class="centered-card wide">
-    <h1 style="margin-bottom: 0.25rem;">Public bundle host</h1>
-    <p class="text-muted" style="margin-bottom: 1.5rem;">
-      Bundle delivery is not wired yet. This host boundary exists now so the admin and public surfaces can diverge cleanly as the app is built.
-    </p>
+<% content_for :title, "Is There a There There? · Knyle Share" %>
 
-    <div class="home-actions">
-      <a class="btn btn-secondary" href="http://<%= admin_host %>:3000/login">Go to admin login</a>
-    </div>
-  </div>
+<div class="threshold-page" data-there-state="threshold">
+  <main class="threshold-shell">
+    <section class="threshold-intro">
+      <p class="threshold-mark">Public Host / Unlisted Entry</p>
+      <h1 class="threshold-question">Is there a there there?</h1>
+      <p class="threshold-copy">
+        If you weren't given a link, you shouldn't be here. This is not a directory, only the quiet edge where shared things pass through.
+      </p>
+
+      <div class="threshold-choices" aria-label="Choose a way of approaching the threshold">
+        <button class="threshold-choice" type="button" data-there-option="knock" aria-pressed="false">Knock</button>
+        <button class="threshold-choice" type="button" data-there-option="listen" aria-pressed="false">Listen</button>
+        <button class="threshold-choice" type="button" data-there-option="lose-map" aria-pressed="false">Lose the map</button>
+      </div>
+    </section>
+
+    <aside class="threshold-panel" aria-live="polite">
+      <p class="threshold-panel-mark" data-there-mark>The threshold answers</p>
+      <p class="threshold-answer" data-there-answer>
+        Every destination begins as a rumor. Choose a way of arriving and watch the room refuse to become a room.
+      </p>
+
+      <div class="threshold-footnotes">
+        <p class="threshold-note">
+          Bundles are meant to be reached by invitation. They appear plainly enough once someone hands you the right path.
+        </p>
+      </div>
+    </aside>
+  </main>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const page = document.querySelector("[data-there-state]");
+    const answer = document.querySelector("[data-there-answer]");
+    const mark = document.querySelector("[data-there-mark]");
+    const choices = document.querySelectorAll("[data-there-option]");
+
+    if (!page || !answer || !mark || choices.length === 0) return;
+
+    const responses = {
+      knock: {
+        mark: "The threshold says",
+        answer: "Every link points somewhere, but the address is not the arrival. Shared things are invitations, not exhibits."
+      },
+      listen: {
+        mark: "The threshold whispers",
+        answer: "There is no directory hiding behind the curtain. This host is mostly an opening, patiently waiting for the names that were meant to pass through it."
+      },
+      "lose-map": {
+        mark: "The threshold laughs",
+        answer: "The search for the hidden room is the room. Stop asking the doorway to become a catalog and it will finally act like a doorway."
+      }
+    };
+
+    choices.forEach((choice) => {
+      choice.addEventListener("click", () => {
+        const state = choice.dataset.thereOption;
+        const response = responses[state];
+        if (!response) return;
+
+        page.dataset.thereState = state;
+        mark.textContent = response.mark;
+        answer.textContent = response.answer;
+
+        choices.forEach((button) => {
+          button.setAttribute("aria-pressed", String(button === choice));
+        });
+      });
+    });
+  });
+</script>
