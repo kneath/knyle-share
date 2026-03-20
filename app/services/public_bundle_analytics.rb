@@ -1,4 +1,13 @@
 class PublicBundleAnalytics
+  def record_view_later(bundle:, access_method:, request_path:, viewer_session: nil)
+    RecordPublicBundleViewJob.perform_later(
+      bundle_id: bundle.id,
+      viewer_session_id: viewer_session&.id,
+      access_method:,
+      request_path:
+    )
+  end
+
   def record_view!(bundle:, access_method:, request_path:, viewer_session: nil)
     viewed_at = Time.current
     unique_viewer_increment = register_unique_viewer(bundle:, viewer_session:, viewed_at:)

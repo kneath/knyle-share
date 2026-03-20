@@ -132,7 +132,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     with_stubbed_storage(
       "field-notes.md" => "# Heading\n\nHello public bundle.\n\n<script>alert('x')</script>"
     ) do
-      get "http://field-notes.share.lvh.me/"
+      perform_enqueued_jobs do
+        get "http://field-notes.share.lvh.me/"
+      end
     end
 
     assert_response :success
@@ -146,7 +148,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     with_stubbed_storage(
       "field-notes.md" => "# Heading\n\nHello public bundle."
     ) do |fake_storage|
-      get "http://field-notes.share.lvh.me/"
+      perform_enqueued_jobs do
+        get "http://field-notes.share.lvh.me/"
+      end
 
       assert_response :success
       assert_match "Heading", response.body
@@ -171,7 +175,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     )
 
     with_stubbed_storage({}) do |fake_storage|
-      get "http://field-notes.share.lvh.me/"
+      perform_enqueued_jobs do
+        get "http://field-notes.share.lvh.me/"
+      end
 
       assert_response :success
       assert_match "Pre-rendered", response.body
@@ -193,8 +199,10 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     with_stubbed_storage(
       "private-brief.pdf" => "%PDF-1.7 mock"
     ) do
-      post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
-      follow_redirect!
+      perform_enqueued_jobs do
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+        follow_redirect!
+      end
     end
 
     assert_response :success
@@ -220,7 +228,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     with_stubbed_storage(
       "private-brief.pdf" => "%PDF-1.7 mock"
     ) do
-      get "http://private-brief.share.lvh.me/", params: { access: token }
+      perform_enqueued_jobs do
+        get "http://private-brief.share.lvh.me/", params: { access: token }
+      end
       assert_response :success
       assert_match "Download file", response.body
       assert_equal 1, @protected_download.reload.viewer_sessions.count
@@ -267,7 +277,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       "index.html" => "<h1>Review</h1>",
       "assets/app.css" => "body { color: red; }"
     ) do
-      get "http://design-review.share.lvh.me/"
+      perform_enqueued_jobs do
+        get "http://design-review.share.lvh.me/"
+      end
       get "http://design-review.share.lvh.me/assets/app.css"
     end
 
@@ -277,7 +289,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
   end
 
   test "file listings only render one page of assets at a time" do
-    get "http://assets-index.share.lvh.me/"
+    perform_enqueued_jobs do
+      get "http://assets-index.share.lvh.me/"
+    end
 
     assert_response :success
     assert_select ".bundle-item", 50
@@ -287,7 +301,9 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_match "file-050.txt", response.body
     assert_match "Next", response.body
 
-    get "http://assets-index.share.lvh.me/", params: { page: 2 }
+    perform_enqueued_jobs do
+      get "http://assets-index.share.lvh.me/", params: { page: 2 }
+    end
 
     assert_response :success
     assert_select ".bundle-item", 25
@@ -332,10 +348,12 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_match "This bundle is protected", response.body
 
-      post "http://private-review.share.lvh.me/access", params: { password: "river maple lantern" }
-      assert_redirected_to "http://private-review.share.lvh.me/"
+      perform_enqueued_jobs do
+        post "http://private-review.share.lvh.me/access", params: { password: "river maple lantern" }
+        assert_redirected_to "http://private-review.share.lvh.me/"
 
-      follow_redirect!
+        follow_redirect!
+      end
       assert_response :success
       assert_match "Private Review", response.body
 
@@ -388,11 +406,15 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     with_stubbed_storage(
       "private-brief.pdf" => "%PDF-1.7 mock"
     ) do
-      post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
-      follow_redirect!
+      perform_enqueued_jobs do
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+        follow_redirect!
+      end
 
       assert_response :success
-      get "http://private-brief.share.lvh.me/"
+      perform_enqueued_jobs do
+        get "http://private-brief.share.lvh.me/"
+      end
 
       assert_response :success
       assert_includes response.headers.fetch("Cache-Control"), "private"

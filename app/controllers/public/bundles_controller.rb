@@ -21,7 +21,7 @@ module Public
         if storage.render_markdown_inline?(@entry_asset)
           return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_inline)
 
-          analytics.record_view!(
+          analytics.record_view_later(
             bundle: @bundle,
             viewer_session: result.viewer_session,
             access_method: result.access_method,
@@ -38,7 +38,7 @@ module Public
         else
           return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_download)
 
-          analytics.record_view!(
+          analytics.record_view_later(
             bundle: @bundle,
             viewer_session: result.viewer_session,
             access_method: result.access_method,
@@ -50,7 +50,7 @@ module Public
         @entry_asset = entry_asset
         return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
-        analytics.record_view!(
+        analytics.record_view_later(
           bundle: @bundle,
           viewer_session: result.viewer_session,
           access_method: result.access_method,
@@ -73,7 +73,7 @@ module Public
           extra: [@bundle.asset_count, @bundle.byte_size, @current_file_listing_page, @per_page]
         )
 
-        analytics.record_view!(
+        analytics.record_view_later(
           bundle: @bundle,
           viewer_session: result.viewer_session,
           access_method: result.access_method,

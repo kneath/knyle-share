@@ -36,4 +36,29 @@ class PublicBundleAnalyticsTest < ActiveSupport::TestCase
     assert_equal 2, bundle.bundle_views.count
     assert_equal 1, BundleUniqueViewer.where(bundle:, viewer_session:).count
   end
+
+  test "enqueues view recording jobs" do
+    bundle = Bundle.create!(
+      slug: "field-notes",
+      title: "Field Notes",
+      source_kind: "file",
+      presentation_kind: "markdown_document",
+      access_mode: "public",
+      status: "active"
+    )
+
+    analytics = PublicBundleAnalytics.new
+
+    assert_enqueued_with(
+      job: RecordPublicBundleViewJob,
+      args: [ {
+        bundle_id: bundle.id,
+        viewer_session_id: nil,
+        access_method: "public",
+        request_path: "/"
+      } ]
+    ) do
+      analytics.record_view_later(bundle:, access_method: "public", request_path: "/")
+    end
+  end
 end

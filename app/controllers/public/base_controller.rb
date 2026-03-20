@@ -65,7 +65,7 @@ module Public
       return unless stale_bundle_page?(asset:, variant: :static_site_html)
 
       fetched_asset = storage.fetch(asset)
-      analytics.record_view!(
+      analytics.record_view_later(
         bundle: @bundle,
         viewer_session:,
         access_method:,
