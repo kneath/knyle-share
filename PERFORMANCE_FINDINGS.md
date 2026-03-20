@@ -8,7 +8,7 @@ Knyle Share is already in a good place on JavaScript weight. There is effectivel
 
 The highest-value fixes are:
 
-- Make bundle assets cacheable across repeat visits instead of minting fresh presigned redirect targets on every request.
+- Make public bundle assets cacheable across repeat visits instead of minting fresh presigned redirect targets on every request.
 - Stop fetching and rendering public HTML and markdown documents from S3 on every page view.
 - Put bounds on file-listing HTML so large bundles do not become multi-hundred-kilobyte documents on mobile networks.
 - Split the shared stylesheet so admin-only and threshold-homepage CSS do not block first paint on every route.
@@ -20,6 +20,8 @@ Current measured artifact sizes:
 - `public/icon.png`: 4,166 bytes.
 
 The app should stay simple. Do not add a heavier frontend stack to chase performance here. Fix delivery semantics first.
+
+When performance and security point in different directions, security wins. Public content can be cached aggressively because it is already meant to be public. Protected content cannot be treated like public content just to save a round-trip.
 
 ## Prioritized Findings
 
@@ -38,6 +40,11 @@ Why this matters:
 - That pattern makes it much harder for the browser to reuse cached bytes across visits and reloads, because the final asset URL changes even when the content does not.
 - On slow cellular networks, that adds an avoidable round-trip through Rails before the browser can even start the real asset transfer.
 - Because object keys already include `content_revision`, the system is leaving safe immutable caching on the table.
+
+Judgment:
+
+- Pursue this aggressively for public bundles.
+- Do not pursue the same strategy for protected bundles unless the cache behavior is explicitly bound to current authorization state. Security wins here.
 
 Actionable fix:
 
@@ -65,6 +72,11 @@ Why this matters:
 - On a starter deployment with one web process (`render.yaml:5-21`), synchronous document work directly increases tail latency under load.
 - On phones and slower networks, lower TTFB is often more important than shaving a few kilobytes off the client payload. This path is spending time before the first byte.
 
+Judgment:
+
+- Pre-rendering and revalidation are worth doing for public documents.
+- Protected documents may use private conditional caching, but only with validators tied to revocation state. Any shortcut that lets stale authorization live longer than intended should be rejected.
+
 Actionable fix:
 
 1. Pre-render sanitized markdown at ingest time and store the rendered HTML alongside the source asset, or persist it in the database keyed by asset checksum plus an explicit sanitizer/renderer version so tightened policies can invalidate old renders.
@@ -86,6 +98,10 @@ Why this matters:
 - A bundle with hundreds or thousands of files will produce large HTML payloads, large DOM trees, longer server render times, and slower mobile scrolling.
 - File-listing bundles are exactly the kind of content that can grow without warning.
 - This gets worse on poor cell coverage because the user pays for every file row before they can interact with the page.
+
+Judgment:
+
+- This is a clear performance win with no meaningful security downside. It should stay in scope.
 
 Actionable fix:
 
@@ -109,49 +125,15 @@ Why this matters:
 - The threshold homepage section alone is roughly one quarter of the current stylesheet, yet those bytes are also shipped to admin pages, password gates, download pages, and file listings.
 - The total stylesheet is still modest today, but the structure is wrong for growth. This will get worse as the app accumulates more surface-specific styling.
 
+Judgment:
+
+- This is worth doing after the cache and TTFB work. It improves first paint without creating a security tradeoff.
+
 Actionable fix:
 
 1. Split the stylesheet into at least `core.css`, `admin.css`, `public_bundle.css`, and `public_home.css`.
 2. Keep only shared tokens and generic primitives in the global sheet.
 3. Load route-specific CSS from the layout or via `content_for :head`.
-4. Consider inlining tiny critical CSS for the smallest shells, such as password-gated and single-download pages, if they remain visually simple.
-
-### P3. The public homepage ships route-specific inline JS and forces layout during interaction
-
-Evidence:
-
-- `app/views/public/home/show.html.erb:28-75` embeds page-specific JavaScript inline instead of loading a cacheable route-specific asset.
-- `app/views/public/home/show.html.erb:52-56` forces reflow with `el.offsetHeight` before restarting the animation.
-
-Why this matters:
-
-- This is not the biggest bottleneck in the app, but the code cannot be cached separately from the HTML document.
-- Forced layout on interaction is unnecessary for a page that should stay lightweight.
-- Inline behavior also makes it harder to tighten CSP later without allowances for inline scripts.
-
-Actionable fix:
-
-1. Move the homepage behavior into a route-scoped JS asset or Stimulus controller and only load it on the public home page.
-2. Replace the forced-reflow animation reset with class toggles, `animationend`, or Web Animations API usage.
-3. Respect `prefers-reduced-motion` for the threshold animations.
-
-### P3. Admin list views will eventually hit the same scaling issue as public listings
-
-Evidence:
-
-- `app/controllers/admin/bundles_controller.rb:5-7` loads all bundles for the index.
-- `app/views/admin/bundles/index.html.erb:11-30` renders all bundles in one pass.
-
-Why this matters:
-
-- Admin traffic is less performance-sensitive than public delivery, but people still use admin interfaces on phones and slower connections.
-- If bundle count grows, the index page will become slower to render and slower to scroll.
-
-Actionable fix:
-
-1. Paginate bundles in the admin index.
-2. Select only the fields needed by the list.
-3. Apply the same treatment to API tokens and any future audit/event views before they grow large.
 
 ## Delivery Recommendations
 
@@ -168,8 +150,6 @@ These are not separate code findings, but they matter if the goal is fast delive
 2. Remove synchronous markdown rendering from the request path.
 3. Paginate public file listings.
 4. Split the shared stylesheet by surface.
-5. Move the homepage script into a cacheable route-specific asset.
-6. Add admin pagination as cleanup before the dataset grows.
 
 ## Verification Checklist
 
@@ -179,9 +159,11 @@ These are not separate code findings, but they matter if the goal is fast delive
 - Public password-gate and single-download pages should need only one small HTML request and one small CSS request before becoming interactive.
 - Mobile and desktop runs should both be tested with real throttling, including a slow-4G profile.
 
-## What Not To Do
+## Will Not Address
 
-- Do not add a client-heavy frontend framework to chase performance here.
-- Do not spend time micro-optimizing the existing tiny icon files or inline text before the cache and TTFB issues are fixed.
-- Do not keep expanding `application.css` as a global dumping ground. That pattern is cheap now and expensive later.
-- Do not introduce shared CDN caching or cacheable protected redirects without an explicit protected-content strategy. The performance win is not worth weakening the access boundary.
+- Shared CDN caching or cacheable protected redirects for protected bundles or protected documents. The performance win is not worth weakening the access boundary.
+- Moving the public homepage inline script into a separate asset purely for performance. Revisit only if CSP hardening work already makes that change convenient.
+- Admin pagination right now. Revisit when actual bundle counts or admin traces show this page has become materially slow.
+- Inlining tiny critical CSS for the password gate and single-download shells. The simpler win is splitting the shared stylesheet; critical-CSS hand tuning is not worth the maintenance cost yet.
+- Micro-optimizing the existing tiny icon files or inline text before cacheability and TTFB are fixed.
+- Adding a client-heavy frontend framework to chase performance here.
