@@ -2,6 +2,27 @@
 
 Date: 2026-03-20
 
+This document is now the running implementation record for frontend performance work. Update it as work lands.
+
+## Current Status
+
+Completed in this session:
+
+- Public/protected delivery behavior is now explicitly split. Public asset redirects are cacheable, protected asset redirects are `private, no-store`, and document responses use revocation-aware validators.
+- Public markdown rendering is now pre-rendered at ingest for new bundles, with stored rendered HTML and a fallback for older bundles.
+- File listings are paginated to 50 items per page and use page-aware cache keys.
+- The stylesheet is split by surface so admin-only and public-home CSS no longer block every route.
+- Public view analytics now enqueue through `ActiveJob` instead of writing inline on the request path.
+- Full test suite currently passes: `76 runs, 383 assertions, 0 failures, 0 errors, 0 skips`.
+
+Still remaining:
+
+- Move public bundle assets to stable immutable public URLs or a CDN/object-storage host instead of Rails-issued redirects.
+- Add explicit edge cache semantics for public documents, including `s-maxage` style behavior where the deployment supports it.
+- Verify Brotli/gzip behavior at the edge in the real deployment.
+- Add server timing instrumentation for storage reads, fallback markdown rendering, and analytics enqueue/perform timing.
+- Add server-side search/prefix filtering or a directory-tree view for very large file listings.
+
 ## Executive Summary
 
 Knyle Share is already in a good place on JavaScript weight. There is effectively no shipped JS bundle today, and the app shell is server-rendered. The biggest performance risks are not framework overhead. They are cacheability, request-path work, and oversized HTML responses when bundles get large.
@@ -46,6 +67,12 @@ Judgment:
 - Pursue this aggressively for public bundles.
 - Do not pursue the same strategy for protected bundles unless the cache behavior is explicitly bound to current authorization state. Security wins here.
 
+Status:
+
+- Partially addressed.
+- Implemented: public and protected asset delivery are now split, public redirects carry explicit cache headers, protected redirects are `private, no-store`, and tests cover the auth-sensitive behavior.
+- Remaining: public assets still flow through Rails redirects. The bigger win is moving public assets to stable immutable public URLs, ideally behind a CDN or object-storage host.
+
 Actionable fix:
 
 1. Separate public and protected bundle delivery strategies.
@@ -77,6 +104,12 @@ Judgment:
 - Pre-rendering and revalidation are worth doing for public documents.
 - Protected documents may use private conditional caching, but only with validators tied to revocation state. Any shortcut that lets stale authorization live longer than intended should be rejected.
 
+Status:
+
+- Partially addressed.
+- Implemented: public and protected document pages now use conditional GET handling, protected validators include revocation state, markdown is pre-rendered at ingest for new bundles, and analytics writes were moved off the request path.
+- Remaining: public document responses still need explicit edge-oriented cache semantics and the deployment still needs CDN/edge verification.
+
 Actionable fix:
 
 1. Pre-render sanitized markdown at ingest time and store the rendered HTML alongside the source asset, or persist it in the database keyed by asset checksum plus an explicit sanitizer/renderer version so tightened policies can invalidate old renders.
@@ -102,6 +135,12 @@ Why this matters:
 Judgment:
 
 - This is a clear performance win with no meaningful security downside. It should stay in scope.
+
+Status:
+
+- Partially addressed.
+- Implemented: file listings now paginate to 50 items per page, only select the columns needed for the listing, and include pagination state in the cache key.
+- Remaining: search/prefix filtering and a directory-oriented presentation for very large bundles.
 
 Actionable fix:
 
@@ -129,6 +168,12 @@ Judgment:
 
 - This is worth doing after the cache and TTFB work. It improves first paint without creating a security tradeoff.
 
+Status:
+
+- Partially addressed.
+- Implemented: shared styles remain in `application.css`, admin-only styles moved to `admin.css`, and public-home styles moved to `public_home.css`. Admin and public-home CSS no longer block every page.
+- Remaining: if public bundle pages accumulate more surface-specific styling, split bundle-specific CSS from the shared core as well.
+
 Actionable fix:
 
 1. Split the stylesheet into at least `core.css`, `admin.css`, `public_bundle.css`, and `public_home.css`.
@@ -144,12 +189,12 @@ These are not separate code findings, but they matter if the goal is fast delive
 - Expose server timing for S3 fetch time, markdown render time, and analytics write time so regressions are visible in the browser.
 - Keep the public path simple. The current architecture is light on JS, which is good. Preserve that advantage while improving cache behavior.
 
-## Recommended Implementation Order
+## Next Steps
 
-1. Fix cacheability for bundle assets and public documents.
-2. Remove synchronous markdown rendering from the request path.
-3. Paginate public file listings.
-4. Split the shared stylesheet by surface.
+1. Move public bundle assets and, where appropriate, public documents to stable immutable public URLs or a CDN/object-storage host so repeat visits avoid the Rails redirect hop.
+2. Add explicit edge cache semantics for public documents and verify real deployment compression behavior.
+3. Add `Server-Timing` instrumentation around storage fetches, fallback markdown rendering, and analytics enqueue/perform work.
+4. Add server-side search/prefix filtering or directory-tree navigation for very large file listings.
 
 ## Verification Checklist
 
