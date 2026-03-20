@@ -3,31 +3,36 @@
 <div class="threshold-page" data-there-state="threshold">
   <main class="threshold-shell">
     <section class="threshold-intro">
-      <p class="threshold-mark">Public Host / Unlisted Entry</p>
-      <h1 class="threshold-question">Is there a there there?</h1>
+      <p class="threshold-epigraph">You have arrived at the edge of something</p>
+      <h1 class="threshold-question">
+        <span class="threshold-q-line">Is there</span>
+        <span class="threshold-q-line threshold-q-indent">a <em>there</em></span>
+        <span class="threshold-q-line">there?</span>
+      </h1>
+    </section>
+
+    <section class="threshold-body">
       <p class="threshold-copy">
         If you weren't given a link, you shouldn't be here. This is not a directory, only the quiet edge where shared things pass through.
       </p>
 
-      <div class="threshold-choices" aria-label="Choose a way of approaching the threshold">
+      <nav class="threshold-choices" aria-label="Choose a way of approaching the threshold">
         <button class="threshold-choice" type="button" data-there-option="knock" aria-pressed="false">Knock</button>
         <button class="threshold-choice" type="button" data-there-option="listen" aria-pressed="false">Listen</button>
         <button class="threshold-choice" type="button" data-there-option="lose-map" aria-pressed="false">Lose the map</button>
-      </div>
+      </nav>
     </section>
 
-    <aside class="threshold-panel" aria-live="polite">
-      <p class="threshold-panel-mark" data-there-mark>The threshold answers</p>
+    <aside class="threshold-response" aria-live="polite">
+      <p class="threshold-response-label" data-there-mark>The threshold answers</p>
       <p class="threshold-answer" data-there-answer>
         Every destination begins as a rumor. Choose a way of arriving and watch the room refuse to become a room.
       </p>
-
-      <div class="threshold-footnotes">
-        <p class="threshold-note">
-          Bundles are meant to be reached by invitation. They appear plainly enough once someone hands you the right path.
-        </p>
-      </div>
     </aside>
+
+    <footer class="threshold-coda">
+      <p>Bundles are meant to be reached by invitation. They appear plainly enough once someone hands you the right path.</p>
+    </footer>
   </main>
 </div>
 
@@ -55,6 +60,13 @@
       }
     };
 
+    function animateText(el, text) {
+      el.style.animation = "none";
+      el.offsetHeight; // force reflow
+      el.textContent = text;
+      el.style.animation = "threshold-materialize 0.8s ease-out forwards";
+    }
+
     choices.forEach((choice) => {
       choice.addEventListener("click", () => {
         const state = choice.dataset.thereOption;
@@ -62,8 +74,8 @@
         if (!response) return;
 
         page.dataset.thereState = state;
-        mark.textContent = response.mark;
-        answer.textContent = response.answer;
+        animateText(mark, response.mark);
+        animateText(answer, response.answer);
 
         choices.forEach((button) => {
           button.setAttribute("aria-pressed", String(button === choice));

@@ -700,208 +700,262 @@ button,
   margin-top: 1rem;
 }
 
+/* --------------------------------------------------------
+   Threshold page — ephemeral, typographic, borderless
+   -------------------------------------------------------- */
+
+@keyframes threshold-drift {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 0.72; }
+}
+
+@keyframes threshold-breathe {
+  0%, 100% { letter-spacing: 0.14em; opacity: 0.5; }
+  50%      { letter-spacing: 0.22em; opacity: 0.7; }
+}
+
+@keyframes threshold-materialize {
+  0%   { opacity: 0; filter: blur(6px); transform: translateY(4px); }
+  100% { opacity: 1; filter: blur(0);   transform: translateY(0); }
+}
+
 .threshold-page {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 15% 15%, rgba(170, 114, 58, 0.24), transparent 28%),
-    radial-gradient(circle at 85% 20%, rgba(58, 108, 86, 0.2), transparent 26%),
-    radial-gradient(circle at 50% 85%, rgba(248, 237, 212, 0.6), transparent 34%),
-    linear-gradient(180deg, #f3ecdf 0%, #eadfcb 48%, #dfcfbb 100%);
-}
-
-.threshold-page::before,
-.threshold-page::after {
-  content: "";
-  position: absolute;
-  border-radius: 999px;
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.threshold-page::before {
-  inset: 8% auto auto 6%;
-  width: 18rem;
-  height: 18rem;
-  border: 1px solid rgba(112, 73, 30, 0.18);
-}
-
-.threshold-page::after {
-  inset: auto 10% 8% auto;
-  width: 22rem;
-  height: 22rem;
-  border: 1px solid rgba(40, 86, 63, 0.16);
+    radial-gradient(ellipse at 20% 0%, rgba(170, 114, 58, 0.10), transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(58, 108, 86, 0.08), transparent 50%),
+    #f6f1ea;
+  transition: background 1.2s ease;
 }
 
 .threshold-shell {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  max-width: 1100px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 3.5rem 1.5rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(18rem, 0.9fr);
-  gap: 1.5rem;
-  align-items: center;
+  padding: 15vh 1.5rem 8vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.threshold-intro,
-.threshold-panel {
-  backdrop-filter: blur(20px);
+/* --- Epigraph --- */
+
+.threshold-epigraph {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.65rem;
+  color: rgba(76, 61, 45, 0.5);
+  animation: threshold-breathe 8s ease-in-out infinite;
 }
+
+/* --- Question --- */
 
 .threshold-intro {
-  padding: 2.5rem 0;
-}
-
-.threshold-mark,
-.threshold-panel-mark {
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.72rem;
-  color: rgba(76, 61, 45, 0.72);
-}
-
-.threshold-question,
-.threshold-answer {
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  margin-top: 3rem;
 }
 
 .threshold-question {
-  margin-top: 0.8rem;
-  max-width: 9ch;
-  font-size: clamp(3rem, 9vw, 5.75rem);
-  line-height: 0.92;
-  letter-spacing: -0.03em;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(2.8rem, 8vw, 5.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+.threshold-q-line {
+  display: block;
+}
+
+.threshold-q-indent {
+  padding-left: 0.6em;
+}
+
+.threshold-question em {
+  font-style: italic;
+  opacity: 0.55;
+  animation: threshold-drift 6s ease-in-out infinite;
+}
+
+/* --- Body / copy + choices --- */
+
+.threshold-body {
+  margin-top: 2.5rem;
+  max-width: 38rem;
 }
 
 .threshold-copy {
-  margin-top: 1.25rem;
-  max-width: 34rem;
-  font-size: 1.02rem;
-  color: rgba(47, 39, 30, 0.84);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: rgba(47, 39, 30, 0.6);
 }
 
 .threshold-choices {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.8rem;
-  margin-top: 2rem;
+  gap: 0;
+  margin-top: 1.8rem;
 }
 
 .threshold-choice {
-  border-radius: 999px;
-  border: 1px solid rgba(53, 47, 38, 0.14);
-  background: rgba(255, 252, 247, 0.55);
-  color: var(--color-text);
-  box-shadow: 0 10px 25px rgba(52, 37, 20, 0.08);
+  background: none;
+  border: none;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 1.1rem;
+  font-style: italic;
+  color: rgba(47, 39, 30, 0.45);
+  cursor: pointer;
+  padding: 0.3em 0;
+  transition: color 0.4s ease, opacity 0.4s ease;
+  position: relative;
 }
 
-.threshold-choice:hover,
+.threshold-choice::after {
+  content: "/";
+  padding: 0 0.7em;
+  font-style: normal;
+  opacity: 0.25;
+  color: rgba(47, 39, 30, 0.35);
+}
+
+.threshold-choice:last-child::after {
+  content: none;
+}
+
+.threshold-choice:hover {
+  color: rgba(47, 39, 30, 0.85);
+}
+
 .threshold-choice[aria-pressed="true"] {
-  background: rgba(58, 108, 86, 0.12);
-  border-color: rgba(58, 108, 86, 0.35);
+  color: var(--color-text);
+  opacity: 1;
 }
 
-.threshold-panel {
-  background: rgba(255, 251, 246, 0.52);
-  border: 1px solid rgba(64, 53, 40, 0.14);
-  border-radius: 2rem;
-  padding: 1.5rem;
-  box-shadow: 0 24px 70px rgba(59, 40, 21, 0.12);
+/* --- Response --- */
+
+.threshold-response {
+  margin-top: 4rem;
+  max-width: 32rem;
+  padding-left: 1.5rem;
+}
+
+.threshold-response-label {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.6rem;
+  color: rgba(76, 61, 45, 0.4);
+  margin-bottom: 0.8rem;
 }
 
 .threshold-answer {
-  margin-top: 1rem;
-  font-size: clamp(1.25rem, 3vw, 1.7rem);
-  line-height: 1.25;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(1.2rem, 2.5vw, 1.55rem);
+  line-height: 1.4;
+  color: rgba(47, 39, 30, 0.72);
+  animation: threshold-materialize 0.8s ease-out forwards;
 }
 
-.threshold-footnotes {
-  display: grid;
-  gap: 0.9rem;
-  margin-top: 1.5rem;
+/* --- Coda / footnote --- */
+
+.threshold-coda {
+  margin-top: 6rem;
 }
 
-.threshold-note {
-  color: rgba(62, 52, 40, 0.76);
-  font-size: 0.9rem;
+.threshold-coda p {
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: rgba(76, 61, 45, 0.32);
+  max-width: 36rem;
+  line-height: 1.5;
 }
+
+/* --- State-driven background shifts --- */
 
 .threshold-page[data-there-state="listen"] {
   background:
-    radial-gradient(circle at 18% 12%, rgba(98, 148, 122, 0.24), transparent 28%),
-    radial-gradient(circle at 78% 18%, rgba(100, 86, 141, 0.12), transparent 24%),
-    radial-gradient(circle at 52% 82%, rgba(245, 239, 223, 0.68), transparent 34%),
-    linear-gradient(180deg, #eef2e9 0%, #dde7dc 50%, #cfdbd2 100%);
+    radial-gradient(ellipse at 30% 0%, rgba(98, 148, 122, 0.12), transparent 50%),
+    radial-gradient(ellipse at 70% 100%, rgba(100, 86, 141, 0.06), transparent 50%),
+    #f0f3ed;
 }
 
 .threshold-page[data-there-state="lose-map"] {
   background:
-    radial-gradient(circle at 20% 18%, rgba(189, 137, 64, 0.2), transparent 26%),
-    radial-gradient(circle at 82% 26%, rgba(62, 90, 123, 0.2), transparent 28%),
-    radial-gradient(circle at 48% 82%, rgba(248, 239, 224, 0.72), transparent 32%),
-    linear-gradient(180deg, #f5ede2 0%, #ebdfd0 48%, #dfd2c4 100%);
+    radial-gradient(ellipse at 60% 0%, rgba(189, 137, 64, 0.08), transparent 50%),
+    radial-gradient(ellipse at 30% 100%, rgba(62, 90, 123, 0.10), transparent 50%),
+    #f5f0e8;
 }
+
+/* --- Dark mode --- */
 
 @media (prefers-color-scheme: dark) {
   .threshold-page {
     background:
-      radial-gradient(circle at 15% 15%, rgba(183, 125, 63, 0.22), transparent 30%),
-      radial-gradient(circle at 82% 18%, rgba(61, 108, 88, 0.22), transparent 26%),
-      radial-gradient(circle at 48% 84%, rgba(12, 17, 19, 0.36), transparent 36%),
-      linear-gradient(180deg, #101413 0%, #141915 48%, #0d120f 100%);
+      radial-gradient(ellipse at 20% 0%, rgba(183, 125, 63, 0.08), transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(61, 108, 88, 0.06), transparent 50%),
+      #0e0e0c;
   }
 
-  .threshold-page::before {
-    border-color: rgba(214, 184, 136, 0.16);
+  .threshold-epigraph,
+  .threshold-response-label {
+    color: rgba(210, 200, 180, 0.35);
   }
 
-  .threshold-page::after {
-    border-color: rgba(112, 166, 136, 0.16);
-  }
-
-  .threshold-mark,
-  .threshold-panel-mark,
-  .threshold-copy,
-  .threshold-note {
-    color: rgba(232, 226, 212, 0.78);
+  .threshold-copy {
+    color: rgba(210, 200, 180, 0.45);
   }
 
   .threshold-choice {
-    background: rgba(10, 14, 12, 0.44);
-    border-color: rgba(227, 217, 190, 0.12);
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+    color: rgba(210, 200, 180, 0.35);
   }
 
-  .threshold-choice:hover,
+  .threshold-choice::after {
+    color: rgba(210, 200, 180, 0.2);
+  }
+
+  .threshold-choice:hover {
+    color: rgba(210, 200, 180, 0.75);
+  }
+
   .threshold-choice[aria-pressed="true"] {
-    background: rgba(74, 126, 101, 0.22);
-    border-color: rgba(119, 187, 154, 0.34);
+    color: var(--color-text);
   }
 
-  .threshold-panel {
-    background: rgba(10, 14, 12, 0.48);
-    border-color: rgba(214, 204, 180, 0.12);
-    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.28);
+  .threshold-answer {
+    color: rgba(210, 200, 180, 0.6);
+  }
+
+  .threshold-coda p {
+    color: rgba(210, 200, 180, 0.2);
   }
 
   .threshold-page[data-there-state="listen"] {
     background:
-      radial-gradient(circle at 18% 12%, rgba(85, 132, 109, 0.24), transparent 30%),
-      radial-gradient(circle at 76% 20%, rgba(110, 92, 148, 0.14), transparent 24%),
-      radial-gradient(circle at 48% 84%, rgba(10, 14, 12, 0.42), transparent 34%),
-      linear-gradient(180deg, #0f1714 0%, #12201b 50%, #0c1311 100%);
+      radial-gradient(ellipse at 30% 0%, rgba(85, 132, 109, 0.1), transparent 50%),
+      radial-gradient(ellipse at 70% 100%, rgba(110, 92, 148, 0.06), transparent 50%),
+      #0c0f0d;
   }
 
   .threshold-page[data-there-state="lose-map"] {
     background:
-      radial-gradient(circle at 18% 15%, rgba(181, 126, 73, 0.2), transparent 28%),
-      radial-gradient(circle at 80% 20%, rgba(78, 110, 150, 0.2), transparent 26%),
-      radial-gradient(circle at 48% 84%, rgba(10, 14, 12, 0.44), transparent 34%),
-      linear-gradient(180deg, #161515 0%, #1c1918 48%, #121111 100%);
+      radial-gradient(ellipse at 60% 0%, rgba(181, 126, 73, 0.08), transparent 50%),
+      radial-gradient(ellipse at 30% 100%, rgba(78, 110, 150, 0.08), transparent 50%),
+      #0f0e0c;
+  }
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 520px) {
+  .threshold-shell {
+    padding: 12vh 1.25rem 6vh;
+  }
+
+  .threshold-response {
+    padding-left: 0;
   }
 }
 
