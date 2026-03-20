@@ -4,8 +4,8 @@ class PublicHomeSystemTest < ApplicationSystemTestCase
   test "public root presents the threshold question and reveals a response" do
     visit "http://share.lvh.me:4010/"
 
-    assert_text "Is there a there there?"
-    assert_text "If you weren't given a link, you shouldn't be here."
+    assert_selector "h1.threshold-question", text: /Is there\s+a there\s+there\?/
+    assert_text "Every destination begins as a rumor."
 
     click_button "Listen"
 
