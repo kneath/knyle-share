@@ -5,6 +5,7 @@ class PublicBundleAnalyticsTest < ActiveSupport::TestCase
     BundleUniqueViewer.delete_all
     BundleView.delete_all
     ViewerSession.delete_all
+    BundleAsset.delete_all
     Bundle.delete_all
   end
 

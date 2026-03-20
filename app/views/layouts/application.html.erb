@@ -18,6 +18,9 @@
     <link rel="apple-touch-icon" href="/icon.png">
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <% if controller_path == "home" || controller_path == "public/home" %>
+      <%= stylesheet_link_tag "public_home", "data-turbo-track": "reload" %>
+    <% end %>
   </head>
 
   <body>

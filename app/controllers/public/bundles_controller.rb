@@ -2,6 +2,8 @@ module Public
   class BundlesController < BaseController
     skip_forgery_protection only: :asset
 
+    FILE_LISTING_PAGE_SIZE = 50
+
     before_action :set_bundle
     before_action :ensure_protected_static_asset_request_is_same_origin!, only: :asset
 
@@ -16,21 +18,33 @@ module Public
         render_html_asset(entry_asset, access_method: result.access_method, viewer_session: result.viewer_session)
       when "markdown_document"
         @entry_asset = entry_asset
-        analytics.record_view!(
-          bundle: @bundle,
-          viewer_session: result.viewer_session,
-          access_method: result.access_method,
-          request_path: request.path
-        )
-
         if storage.render_markdown_inline?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_inline)
+
+          analytics.record_view!(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
           @rendered_markdown = helpers.sanitize(Commonmarker.to_html(storage.read(@entry_asset)))
           render :markdown
         else
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :markdown_download)
+
+          analytics.record_view!(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
           render :markdown_download
         end
       when "single_download"
         @entry_asset = entry_asset
+        return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
+
         analytics.record_view!(
           bundle: @bundle,
           viewer_session: result.viewer_session,
@@ -39,13 +53,28 @@ module Public
         )
         render :single_download
       when "file_listing"
-        @assets = @bundle.assets.order(:path)
+        @page = requested_page
+        @per_page = FILE_LISTING_PAGE_SIZE
+        @total_file_listing_pages = [(@bundle.asset_count.to_f / @per_page).ceil, 1].max
+        @current_file_listing_page = [@page, @total_file_listing_pages].min
+        @file_listing_assets = @bundle.assets
+          .select(:id, :path, :byte_size)
+          .order(:path)
+          .offset((@current_file_listing_page - 1) * @per_page)
+          .limit(@per_page)
+
+        return unless stale_bundle_page?(
+          variant: :file_listing,
+          extra: [@bundle.asset_count, @bundle.byte_size, @current_file_listing_page, @per_page]
+        )
+
         analytics.record_view!(
           bundle: @bundle,
           viewer_session: result.viewer_session,
           access_method: result.access_method,
           request_path: request.path
         )
+
         render :file_listing
       else
         render plain: "Unsupported bundle presentation", status: :unprocessable_entity
@@ -112,6 +141,11 @@ module Public
 
     def requested_asset_path
       [params[:asset_path], params[:format]].compact.join(".")
+    end
+
+    def requested_page
+      page = params[:page].to_i
+      page.positive? ? page : 1
     end
 
     def ensure_protected_static_asset_request_is_same_origin!

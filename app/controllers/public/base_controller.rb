@@ -1,5 +1,9 @@
 module Public
   class BaseController < ApplicationController
+    PUBLIC_DOCUMENT_CACHE_TTL_SECONDS = 5.minutes.to_i
+    PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS = 1.minute.to_i
+    BUNDLE_PAGE_CACHE_VERSION = 1
+
     private
 
     def set_bundle
@@ -58,6 +62,8 @@ module Public
     end
 
     def render_html_asset(asset, access_method:, viewer_session: nil)
+      return unless stale_bundle_page?(asset:, variant: :static_site_html)
+
       fetched_asset = storage.fetch(asset)
       analytics.record_view!(
         bundle: @bundle,
@@ -71,7 +77,18 @@ module Public
 
     def send_asset(asset, disposition:)
       response.set_header("Referrer-Policy", "no-referrer")
-      redirect_to storage.download_url(asset, disposition:), allow_other_host: true
+      response.set_header("Cache-Control", bundle_asset_redirect_cache_control)
+      response.set_header("Pragma", "no-cache") unless @bundle.public_access?
+
+      redirect_to(
+        storage.download_url(
+          asset,
+          disposition:,
+          expires_in: storage.public_asset_redirect_ttl_seconds,
+          response_cache_control: bundle_asset_response_cache_control
+        ),
+        allow_other_host: true
+      )
     end
 
     def bundle_slug
@@ -79,6 +96,68 @@ module Public
       raise ActiveRecord::RecordNotFound, "Bundle not found" if slug.blank?
 
       slug
+    end
+
+    def stale_bundle_page?(asset: nil, variant:, extra: nil)
+      stale?(
+        etag: bundle_page_cache_key(asset:, variant:, extra:),
+        last_modified: bundle_page_last_modified(asset:),
+        public: @bundle.public_access?,
+        cache_control: bundle_page_cache_control
+      )
+    end
+
+    def bundle_page_cache_key(asset:, variant:, extra:)
+      [
+        "bundle-page",
+        BUNDLE_PAGE_CACHE_VERSION,
+        variant,
+        extra,
+        @bundle.id,
+        @bundle.content_revision,
+        @bundle.access_revision,
+        @bundle.access_mode,
+        @bundle.status,
+        asset&.id,
+        asset&.checksum,
+        asset&.byte_size,
+        asset&.content_type
+      ]
+    end
+
+    def bundle_page_last_modified(asset:)
+      [asset&.updated_at, @bundle.last_replaced_at, @bundle.updated_at, @bundle.created_at].compact.max
+    end
+
+    def bundle_page_cache_control
+      if @bundle.public_access?
+        {
+          max_age: PUBLIC_DOCUMENT_CACHE_TTL_SECONDS,
+          stale_while_revalidate: PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS
+        }
+      else
+        {
+          no_cache: true,
+          must_revalidate: true,
+          extras: [ "private" ]
+        }
+      end
+    end
+
+    def bundle_asset_redirect_cache_control
+      if @bundle.public_access?
+        "public, max-age=#{storage.public_asset_redirect_ttl_seconds}"
+      else
+        "private, no-store"
+      end
+    end
+
+    def bundle_asset_response_cache_control
+      if @bundle.public_access?
+        storage.public_asset_response_cache_control
+      else
+        storage.protected_asset_response_cache_control
+      end
     end
   end
 end

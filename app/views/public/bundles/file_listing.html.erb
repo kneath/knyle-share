@@ -9,7 +9,7 @@
 
       <div class="card">
         <ul class="bundle-list">
-          <% @assets.each do |asset| %>
+          <% @file_listing_assets.each do |asset| %>
             <li>
               <a class="bundle-item" href="<%= public_bundle_asset_url_for(@bundle, asset_path: asset.path, access_token: params[:access]) %>">
                 <div>
@@ -23,6 +23,25 @@
             </li>
           <% end %>
         </ul>
+
+        <% if @total_file_listing_pages > 1 %>
+          <% base_url = public_bundle_url_for(@bundle, access_token: params[:access]) %>
+          <% separator = base_url.include?("?") ? "&" : "?" %>
+
+          <nav class="home-actions" aria-label="File listing pagination">
+            <% if @current_file_listing_page > 1 %>
+              <a class="btn btn-secondary" href="<%= "#{base_url}#{separator}page=#{@current_file_listing_page - 1}" %>">Previous</a>
+            <% end %>
+
+            <span class="text-muted" aria-live="polite">
+              Page <%= @current_file_listing_page %> of <%= @total_file_listing_pages %>
+            </span>
+
+            <% if @current_file_listing_page < @total_file_listing_pages %>
+              <a class="btn btn-secondary" href="<%= "#{base_url}#{separator}page=#{@current_file_listing_page + 1}" %>">Next</a>
+            <% end %>
+          </nav>
+        <% end %>
       </div>
     </div>
   </main>

@@ -1,0 +1,220 @@
+/* Public home styles.
+   This keeps the threshold page and landing page off the shared bundle pages. */
+
+.home-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.home-card h2 {
+  margin-bottom: 0.75rem;
+}
+
+.home-card p {
+  color: var(--color-muted);
+}
+
+@keyframes threshold-drift {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.6; }
+}
+
+@keyframes threshold-materialize {
+  0%   { opacity: 0; filter: blur(8px); transform: translateY(6px); }
+  100% { opacity: 1; filter: blur(0);   transform: translateY(0); }
+}
+
+.threshold-page {
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  background: #0c0b09;
+  transition: background 1.4s ease;
+}
+
+.threshold-shell {
+  position: relative;
+  z-index: 1;
+  height: 100dvh;
+  margin: 0 auto;
+  padding: 5dvh 5vw 4dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.threshold-question {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: clamp(3.2rem, min(15dvh, 18vw), 14rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+  color: rgba(235, 228, 216, 0.92);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.threshold-q-line {
+  display: block;
+}
+
+.threshold-q-indent {
+  padding-left: 0.5em;
+}
+
+.threshold-question em {
+  font-style: italic;
+  opacity: 0.35;
+  animation: threshold-drift 6s ease-in-out infinite;
+}
+
+.threshold-floor {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.threshold-floor-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.threshold-floor-right {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.threshold-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 0.6rem;
+}
+
+.threshold-choice {
+  background: none;
+  border: none;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: rgba(210, 200, 180, 0.3);
+  cursor: pointer;
+  padding: 0.3em 0;
+  transition: color 0.4s ease;
+  position: relative;
+}
+
+.threshold-choice::after {
+  content: "/";
+  padding: 0 0.5em;
+  font-style: normal;
+  opacity: 0.3;
+}
+
+.threshold-choice:last-child::after {
+  content: none;
+}
+
+.threshold-choice:hover {
+  color: rgba(235, 228, 216, 0.7);
+}
+
+.threshold-choice[aria-pressed="true"] {
+  color: rgba(235, 228, 216, 0.85);
+}
+
+.threshold-response-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.55rem;
+  color: rgba(210, 200, 180, 0.25);
+  margin-bottom: 0.5rem;
+}
+
+.threshold-answer {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: rgba(210, 200, 180, 0.45);
+  animation: threshold-materialize 0.8s ease-out forwards;
+}
+
+.threshold-page[data-there-state="knock"] {
+  background: #0e0b08;
+}
+
+.threshold-page[data-there-state="listen"] {
+  background: #090d0b;
+}
+
+.threshold-page[data-there-state="lose-map"] {
+  background: #0d0c08;
+}
+
+@media (prefers-color-scheme: light) {
+  .threshold-page {
+    background: #f4f0e8;
+  }
+
+  .threshold-question {
+    color: rgba(20, 18, 14, 0.88);
+  }
+
+  .threshold-question em {
+    opacity: 0.25;
+  }
+
+  .threshold-choice {
+    color: rgba(47, 39, 30, 0.35);
+  }
+
+  .threshold-choice:hover {
+    color: rgba(47, 39, 30, 0.75);
+  }
+
+  .threshold-choice[aria-pressed="true"] {
+    color: rgba(47, 39, 30, 0.8);
+  }
+
+  .threshold-response-label {
+    color: rgba(47, 39, 30, 0.3);
+  }
+
+  .threshold-answer {
+    color: rgba(47, 39, 30, 0.5);
+  }
+
+  .threshold-page[data-there-state="knock"] {
+    background: #f2ede4;
+  }
+
+  .threshold-page[data-there-state="listen"] {
+    background: #eef1eb;
+  }
+
+  .threshold-page[data-there-state="lose-map"] {
+    background: #f3f0e6;
+  }
+}
+
+@media (max-width: 640px) {
+  .threshold-shell {
+    padding: 4dvh 6vw 3dvh;
+  }
+
+  .threshold-floor {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.2rem;
+  }
+
+  .threshold-floor-right {
+    text-align: left;
+  }
+}
