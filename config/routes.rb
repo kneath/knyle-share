@@ -30,6 +30,9 @@ Rails.application.routes.draw do
       delete "bundles/:id", to: "bundles#destroy"
       get "bundles/:bundle_id/link", to: "bundle_links#new", as: :bundle_link
       post "bundles/:bundle_id/link", to: "bundle_links#create"
+      get "api-tokens", to: "api_tokens#index", as: :api_tokens
+      post "api-tokens", to: "api_tokens#create"
+      patch "api-tokens/:id/revoke", to: "api_tokens#revoke", as: :revoke_api_token
     end
   end
 

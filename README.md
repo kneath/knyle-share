@@ -271,13 +271,14 @@ Notes:
 
 The private API uses Bearer tokens, not admin browser sessions.
 
-To create a token locally or on a deployed console:
+Create a token from the admin UI:
 
-```sh
-bundle exec rails runner 'api_token, plaintext_token = ApiToken.issue!(label: "CLI"); puts plaintext_token'
-```
+1. Sign in on the admin host.
+2. Open `API Tokens`.
+3. Create a token with a descriptive label.
+4. Copy the plaintext token immediately. It is shown only once.
 
-Store the printed token immediately. Only the digest is saved in the database.
+If you lose the plaintext token, revoke it and create a new one. Only the digest is saved in the database.
 
 Use it like this:
 

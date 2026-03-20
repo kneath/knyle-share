@@ -1,0 +1,94 @@
+<% content_for :title, "API Tokens · Knyle Share" %>
+
+<div class="page">
+  <%= render "admin/shared/header" %>
+
+  <main>
+    <div class="container">
+      <div class="page-title">
+        <h1>API Tokens <span class="count"><%= @api_tokens.size %></span></h1>
+        <p class="text-muted mt-1">
+          Use API tokens for the CLI and direct API access. Tokens are shown only once when they are created.
+        </p>
+      </div>
+
+      <% if @issued_token.present? %>
+        <div class="generated-secret">
+          <div class="detail-label">New token</div>
+          <code><%= @issued_token %></code>
+          <p class="field-note mt-1">Store this now. Only the token digest is kept after this page load.</p>
+        </div>
+      <% end %>
+
+      <div class="detail-section">
+        <h2>Create Token</h2>
+
+        <div class="detail-copy">
+          <p class="text-muted">
+            Give each token a short label so it is clear which machine, workflow, or CLI setup it belongs to.
+          </p>
+        </div>
+
+        <%= form_with model: @new_api_token, url: admin_api_tokens_path, method: :post, class: "stack-form" do |form| %>
+          <div class="field-group">
+            <%= form.label :label, "Label" %>
+            <%= form.text_field :label, class: "text-input", autocomplete: "off", spellcheck: false, placeholder: "MacBook CLI" %>
+            <% if form.object.errors[:label].any? %>
+              <p class="field-error"><%= form.object.errors[:label].to_sentence %></p>
+            <% else %>
+              <p class="field-note">Example: <code>MacBook CLI</code>, <code>Render backup script</code>, or <code>CI upload</code>.</p>
+            <% end %>
+          </div>
+
+          <div class="button-row">
+            <button class="btn btn-primary" type="submit">Create API token</button>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="detail-section">
+        <h2>Issued Tokens</h2>
+
+        <% if @api_tokens.any? %>
+          <ul class="token-list">
+            <% @api_tokens.each do |api_token| %>
+              <li class="token-row">
+                <div class="token-copy">
+                  <div class="token-heading">
+                    <span class="bundle-name"><%= api_token.label %></span>
+                    <span class="badge <%= api_token.active? ? "badge-active" : "badge-disabled" %>">
+                      <%= api_token.active? ? "Active" : "Revoked" %>
+                    </span>
+                  </div>
+
+                  <div class="token-meta">
+                    <span>Created <%= time_ago_in_words(api_token.created_at) %> ago</span>
+                    <% if api_token.last_used_at.present? %>
+                      <span>Last used <%= time_ago_in_words(api_token.last_used_at) %> ago</span>
+                    <% else %>
+                      <span>Never used</span>
+                    <% end %>
+                    <% if api_token.revoked_at.present? %>
+                      <span>Revoked <%= time_ago_in_words(api_token.revoked_at) %> ago</span>
+                    <% end %>
+                  </div>
+                </div>
+
+                <% if api_token.active? %>
+                  <%= form_with url: admin_revoke_api_token_path(api_token), method: :patch, class: "inline-form" do %>
+                    <button class="btn btn-secondary" type="submit" data-turbo-confirm="Revoke this API token?">Revoke</button>
+                  <% end %>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        <% else %>
+          <div class="empty-state">
+            <h3>No API tokens yet</h3>
+            <p class="text-muted mt-1">Create one here before wiring up the CLI or making direct API requests.</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </main>
+</div>
