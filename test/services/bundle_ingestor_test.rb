@@ -112,7 +112,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert store.objects.key?("bundles/#{bundle.id}/1/assets/app.css")
   end
 
-  test "replacement preserves analytics and viewer sessions while swapping assets" do
+  test "replacement preserves analytics while revoking prior access grants" do
     bundle = Bundle.create!(
       slug: "private-brief",
       title: "Private Brief",
@@ -135,6 +135,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
       checksum: "old"
     )
     session = bundle.viewer_sessions.create!(
+      access_revision: bundle.access_revision,
       token_digest: "token",
       expires_at: 1.day.from_now,
       last_seen_at: Time.current
@@ -176,9 +177,11 @@ class BundleIngestorTest < ActiveSupport::TestCase
 
     assert_equal bundle.id, replaced_bundle.id
     assert_equal 2, replaced_bundle.content_revision
+    assert_equal 2, replaced_bundle.access_revision
     assert_equal 7, replaced_bundle.total_views_count
     assert_equal 2, replaced_bundle.unique_protected_viewers_count
     assert_equal 1, replaced_bundle.viewer_sessions.count
+    assert_equal [1], replaced_bundle.viewer_sessions.pluck(:access_revision)
     assert_equal 1, replaced_bundle.bundle_views.count
     assert_equal "public", replaced_bundle.access_mode
     assert_nil replaced_bundle.password_digest

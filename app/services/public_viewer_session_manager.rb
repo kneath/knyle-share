@@ -14,6 +14,7 @@ class PublicViewerSessionManager
 
     viewer_session = bundle.viewer_sessions.find_by(token_digest: digest(raw_token))
     return clear(bundle) if viewer_session.blank? || viewer_session.expires_at <= Time.current
+    return clear(bundle) if viewer_session.access_revision != bundle.access_revision
 
     viewer_session
   end
@@ -23,6 +24,7 @@ class PublicViewerSessionManager
     expires_at ||= bundle_expiry(bundle)
 
     viewer_session = bundle.viewer_sessions.create!(
+      access_revision: bundle.access_revision,
       token_digest: digest(raw_token),
       expires_at:,
       last_seen_at: Time.current
@@ -36,7 +38,7 @@ class PublicViewerSessionManager
     expires_at ||= bundle_expiry(bundle)
     raw_token = cookies.signed[cookie_name(bundle)]
 
-    viewer_session.update!(expires_at:, last_seen_at: Time.current)
+    viewer_session.update!(access_revision: bundle.access_revision, expires_at:, last_seen_at: Time.current)
     write_cookie(bundle:, raw_token:, expires_at:) if raw_token.present?
     viewer_session
   end

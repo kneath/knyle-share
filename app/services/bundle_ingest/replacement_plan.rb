@@ -4,6 +4,8 @@ module BundleIngest
     :slug,
     :current_content_revision,
     :next_content_revision,
+    :current_access_revision,
+    :next_access_revision,
     :replace_existing,
     :preserves_analytics,
     :preserves_sessions,

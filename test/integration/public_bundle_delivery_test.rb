@@ -175,6 +175,31 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_equal "%PDF-1.7 mock", response.body
   end
 
+  test "password rotation invalidates existing viewer sessions and signed links" do
+    token = BundleAccessLink.generate(bundle: @protected_download, expires_in: 1.day)
+
+    with_stubbed_storage(
+      "private-brief.pdf" => "%PDF-1.7 mock"
+    ) do
+      post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+      assert_redirected_to "http://private-brief.share.lvh.me/"
+
+      @protected_download.reload.set_password!("sunlit amber harbor")
+
+      get "http://private-brief.share.lvh.me/download"
+      assert_redirected_to "http://private-brief.share.lvh.me/"
+
+      follow_redirect!
+      assert_response :success
+      assert_match "This bundle is protected", response.body
+
+      get "http://private-brief.share.lvh.me/", params: { access: token }
+    end
+
+    assert_response :unauthorized
+    assert_match "invalid or has expired", response.body
+  end
+
   test "static-site bundle paths on the shared host redirect to the isolated bundle host" do
     get public_bundle_url(slug: @static_site.slug, host: "share.lvh.me")
 

@@ -82,6 +82,7 @@ class AdminBundleManagementTest < ActionDispatch::IntegrationTest
 
   test "password rotation generates a new password" do
     old_digest = @protected_bundle.password_digest
+    old_access_revision = @protected_bundle.access_revision
 
     patch admin_bundle_password_url(@protected_bundle, host: "admin.lvh.me"), params: { password_strategy: "generated" }
 
@@ -90,6 +91,7 @@ class AdminBundleManagementTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_not_equal old_digest, @protected_bundle.reload.password_digest
+    assert_equal old_access_revision + 1, @protected_bundle.access_revision
     assert_match(/\A.*[a-z]+ [a-z]+ [a-z]+.*\z/m, response.body)
   end
 

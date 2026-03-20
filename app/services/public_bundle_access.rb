@@ -17,7 +17,10 @@ class PublicBundleAccess
 
     if params[:access].present?
       payload = BundleAccessLink.verify(params[:access])
-      if payload.present? && payload[:bundle_id] == bundle.id && payload[:slug] == bundle.slug
+      if payload.present? &&
+        payload[:bundle_id] == bundle.id &&
+        payload[:slug] == bundle.slug &&
+        payload[:access_revision] == bundle.access_revision
         viewer_session = viewer_session_manager.establish!(bundle:, expires_at: payload[:expires_at])
         return Result.new(allowed?: true, access_method: "signed_link", viewer_session:, message: nil)
       end

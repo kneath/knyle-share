@@ -8,18 +8,33 @@ class BundleAccessLink
 
   def self.generate(bundle:, expires_in:)
     expires_at = Time.current + expires_in
-    verifier.generate({ bundle_id: bundle.id, slug: bundle.slug, expires_at: expires_at.iso8601 }, expires_in:, purpose: PURPOSE)
+    verifier.generate(
+      {
+        bundle_id: bundle.id,
+        slug: bundle.slug,
+        access_revision: bundle.access_revision,
+        expires_at: expires_at.iso8601
+      },
+      expires_in:,
+      purpose: PURPOSE
+    )
   end
 
   def self.verify(token)
     payload = verifier.verified(token, purpose: PURPOSE)
     return if payload.blank?
 
+    access_revision = payload[:access_revision] || payload["access_revision"]
+    return if access_revision.blank?
+
     {
       bundle_id: payload[:bundle_id] || payload["bundle_id"],
       slug: payload[:slug] || payload["slug"],
+      access_revision: Integer(access_revision),
       expires_at: Time.iso8601(payload[:expires_at] || payload["expires_at"])
     }
+  rescue ArgumentError, TypeError
+    nil
   end
 
   def self.verifier

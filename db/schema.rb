@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_19_000400) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_20_000100) do
   create_table "api_tokens", force: :cascade do |t|
     t.string "label", null: false
     t.string "token_digest", null: false
@@ -83,6 +83,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_19_000400) do
     t.integer "unique_protected_viewers_count", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "access_revision", default: 1, null: false
     t.index ["slug"], name: "index_bundles_on_slug", unique: true
   end
 
@@ -104,6 +105,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_19_000400) do
     t.datetime "last_seen_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "access_revision", default: 1, null: false
     t.index ["bundle_id"], name: "index_viewer_sessions_on_bundle_id"
     t.index ["token_digest"], name: "index_viewer_sessions_on_token_digest", unique: true
   end

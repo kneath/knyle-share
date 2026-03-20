@@ -96,6 +96,7 @@ class BundleIngestor
         entry_path: classification.entry_path,
         byte_size: staged_entries.sum(&:byte_size),
         content_revision: plan.next_content_revision,
+        access_revision: plan.next_access_revision,
         last_replaced_at: Time.current
       )
 
@@ -112,7 +113,8 @@ class BundleIngestor
         password_session_ttl_seconds: DEFAULT_PASSWORD_SESSION_TTL,
         entry_path: classification.entry_path,
         byte_size: staged_entries.sum(&:byte_size),
-        content_revision: 1
+        content_revision: 1,
+        access_revision: 1
       )
     end
   end

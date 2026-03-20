@@ -31,7 +31,7 @@ Relevant code:
 - [app/services/bundle_ingest/replacement_planner.rb#L19](/Users/kneath/code/kneath/knyle-share/app/services/bundle_ingest/replacement_planner.rb#L19)
 
 Current disposition:
-- Must be fixed so password rotation and replacement can function as real revocation boundaries.
+- Mitigation implemented: bundles now carry an `access_revision`, viewer sessions are bound to that revision, signed links include it, and replacements/password rotations bump it to revoke prior access grants.
 
 ### 5. Public Delivery Is Vulnerable to Memory/Availability DoS
 

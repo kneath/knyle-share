@@ -34,6 +34,7 @@ class Bundle < ApplicationRecord
   validates :presentation_kind, inclusion: { in: PRESENTATION_KIND_LABELS.keys }
   validates :status, inclusion: { in: STATUS_LABELS.keys }
   validates :access_mode, inclusion: { in: ACCESS_MODE_LABELS.keys }
+  validates :access_revision, numericality: { greater_than_or_equal_to: 1, only_integer: true }
   validate :slug_is_not_reserved
   validate :protected_bundle_requires_password
 
@@ -92,8 +93,15 @@ class Bundle < ApplicationRecord
   end
 
   def set_password!(new_password)
-    self.password = new_password
-    save!
+    transaction do
+      self.password = new_password
+      self.access_revision = access_revision.to_i + 1
+      save!
+    end
+  end
+
+  def rotate_access_revision!
+    increment!(:access_revision)
   end
 
   private
