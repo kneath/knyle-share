@@ -1,4 +1,5 @@
 require "uri"
+require "cgi"
 
 module PublicBundleRouting
   module_function
@@ -101,12 +102,16 @@ module PublicBundleRouting
   def build_url(base_url:, host:, path:, query: nil)
     uri = URI.parse(base_url.to_s)
     uri.host = host
-    uri.path = path
+    uri.path = encode_path(path)
     uri.query = query.presence
     uri.to_s
   end
 
   def normalize_host(host)
     host.to_s.downcase.sub(/\A\.+/, "").sub(/\.+\z/, "")
+  end
+
+  def encode_path(path)
+    path.to_s.split("/", -1).map { |segment| CGI.escape(segment).gsub("+", "%20") }.join("/")
   end
 end

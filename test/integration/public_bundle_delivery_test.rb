@@ -89,6 +89,12 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       content_type: "text/plain",
       byte_size: 256
     )
+    @file_listing_bundle.assets.create!(
+      path: "Additional Candidates - Research.md",
+      storage_key: "bundles/#{@file_listing_bundle.id}/1/Additional Candidates - Research.md",
+      content_type: "text/markdown",
+      byte_size: 512
+    )
 
     @protected_static_site = Bundle.create!(
       slug: "private-review",
@@ -324,10 +330,12 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select ".bundle-item", 2
+    assert_select ".bundle-item", 3
     assert_match "All files", response.body
     assert_match "assets/", response.body
     assert_match "README.txt", response.body
+    assert_match "Additional Candidates - Research.md", response.body
+    assert_match "/Additional%20Candidates%20-%20Research.md", response.body
     assert_no_match "file-001.txt", response.body
 
     perform_enqueued_jobs do
