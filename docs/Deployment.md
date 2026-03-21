@@ -224,6 +224,9 @@ Render will prompt for the variables marked `sync: false` in the Blueprint. Set 
 | --- | --- | --- |
 | `PUBLIC_ASSET_REDIRECT_TTL_SECONDS` | `300` | Presigned redirect lifetime for download-style asset access |
 | `INLINE_MARKDOWN_RENDER_MAX_BYTES` | `1048576` | Maximum markdown size rendered inline before download-only fallback |
+| `SENTRY_DSN` | unset | Enables Sentry exception reporting when present |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | Optional Sentry performance tracing sample rate |
+| `SENTRY_ENVIRONMENT` | `production` | Optional Sentry environment override |
 | `RAILS_LOG_LEVEL` | `info` | Standard Rails production log level override |
 
 ### 6.3 Values already handled by the Blueprint
@@ -414,6 +417,7 @@ After the first deployment:
 - pushing changes to the linked branch will trigger new deploys unless auto-deploy is disabled
 - startup will continue to run `db:prepare`, so committed migrations apply on boot
 - the SQLite database remains on the persistent disk across deploys
+- if `SENTRY_DSN` is configured, unhandled server-side exceptions are reported to Sentry automatically
 
 If you change any of these, update all related systems together:
 
@@ -520,6 +524,7 @@ Repo references:
 - [config/environments/production.rb](/Users/kneath/code/kneath/knyle-share/config/environments/production.rb)
 - [config/routes.rb](/Users/kneath/code/kneath/knyle-share/config/routes.rb)
 - [app/services/setup_validation.rb](/Users/kneath/code/kneath/knyle-share/app/services/setup_validation.rb)
+- [config/initializers/sentry.rb](/Users/kneath/code/kneath/knyle-share/config/initializers/sentry.rb)
 
 Official docs:
 
@@ -530,3 +535,4 @@ Official docs:
 - [GitHub: Creating an OAuth app](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)
 - [AWS S3: Creating a general purpose bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html)
 - [AWS S3: Block public access settings](https://docs.aws.amazon.com/AmazonS3/latest/userguide/configuring-block-public-access-bucket.html)
+- [Sentry for Rails](https://docs.sentry.io/platforms/ruby/guides/rails/)

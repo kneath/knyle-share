@@ -179,6 +179,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public markdown bundles render when the storage body is ascii-8bit" do
+    binary_markdown = "# Heading\n\nHello binary markdown.\n".b
+
+    with_stubbed_storage(
+      "field-notes.md" => binary_markdown
+    ) do
+      perform_enqueued_jobs do
+        get "http://field-notes.share.lvh.me/"
+      end
+    end
+
+    assert_response :success
+    assert_match "Heading", response.body
+    assert_match "Hello binary markdown.", response.body
+  end
+
   test "public markdown pages use prerendered html when it is available" do
     @public_markdown.assets.first.update!(
       rendered_html: "<h1>Pre-rendered</h1>\n<p>Fast path.</p>",

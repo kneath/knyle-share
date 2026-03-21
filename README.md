@@ -233,6 +233,8 @@ Relevant production env vars:
 - `INLINE_MARKDOWN_RENDER_MAX_BYTES` optional, defaults to `1048576`
 - `GITHUB_CLIENT_ID`
 - `GITHUB_CLIENT_SECRET`
+- `SENTRY_DSN` optional, enables Sentry exception reporting
+- `SENTRY_TRACES_SAMPLE_RATE` optional, defaults to `0`
 
 The current implementation expects the S3 bucket to be reachable from the app and the GitHub OAuth callback to point at the admin host.
 Public downloads and nested assets are served by short-lived presigned S3 URLs after the app authorizes access, so the bucket stays private while large asset bodies stay off the Rails process.
@@ -290,6 +292,7 @@ Recommended deploy flow:
    - `S3_BUCKET`
    - `GITHUB_CLIENT_ID`
    - `GITHUB_CLIENT_SECRET`
+   - `SENTRY_DSN` optional, if you want production exception tracking
 5. Attach the persistent disk.
 6. Add public domains to the same Render service:
    - one admin domain, for example `admin.example.com`
@@ -307,6 +310,7 @@ Notes:
 - `SECRET_KEY_BASE` is generated automatically by `render.yaml`.
 - Keep `WEB_CONCURRENCY=1` with SQLite on a single Render disk.
 - The admin domain, `PUBLIC_HOST`, and `*.PUBLIC_HOST` should all point at the same Render web service. Host-constrained routes split admin, the threshold page, and bundle delivery inside the app.
+- If `SENTRY_DSN` is set, the app reports server-side exceptions to Sentry and forwards error/fatal log entries as Sentry logs. `SENTRY_TRACES_SAMPLE_RATE` stays `0` unless you explicitly want performance tracing.
 
 ## API Tokens
 
