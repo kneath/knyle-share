@@ -325,10 +325,24 @@ If you lose the plaintext token, revoke it and create a new one. Only the digest
 
 The repo now includes a local CLI at [bin/knyle-share](/Users/kneath/code/kneath/knyle-share/bin/knyle-share).
 
+To install it into `/usr/local/bin` as a symlink back to this repo:
+
+```sh
+sudo bin/install-cli
+```
+
+That installs `/usr/local/bin/knyle-share` and keeps it pointed at your current checkout, so pulling new code updates the installed CLI too.
+
+You can also choose a different destination:
+
+```sh
+bin/install-cli --bin-dir "$HOME/.local/bin"
+```
+
 First, save your admin host and token:
 
 ```sh
-bin/knyle-share login
+knyle-share login
 ```
 
 That writes a local CLI config file under `~/.config/knyle-share/config.json` by default. You can also override configuration with:
@@ -339,9 +353,9 @@ That writes a local CLI config file under `~/.config/knyle-share/config.json` by
 Basic usage:
 
 ```sh
-bin/knyle-share ./site --public
-bin/knyle-share "./Summer in the Sierra.md" --protected --generate-password
-bin/knyle-share ./site --slug poke-recipes --replace --public
+knyle-share ./site --public
+knyle-share "./Summer in the Sierra.md" --protected --generate-password
+knyle-share ./site --slug poke-recipes --replace --public
 ```
 
 Useful flags:

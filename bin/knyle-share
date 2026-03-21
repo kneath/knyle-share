@@ -1,6 +1,9 @@
 #!/usr/bin/env ruby
 
-$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+script_path = File.realpath(__FILE__)
+repo_root = File.expand_path("..", File.dirname(script_path))
+
+$LOAD_PATH.unshift(File.join(repo_root, "lib"))
 
 require "knyle_share"
 

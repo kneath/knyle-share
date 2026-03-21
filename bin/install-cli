@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+
+require "fileutils"
+require "optparse"
+
+options = {
+  bin_dir: "/usr/local/bin",
+  executable_name: "knyle-share",
+  force: false
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/install-cli [options]"
+
+  opts.on("--bin-dir DIR", "Directory to install into (default: /usr/local/bin)") do |value|
+    options[:bin_dir] = value
+  end
+
+  opts.on("--name NAME", "Executable name (default: knyle-share)") do |value|
+    options[:executable_name] = value
+  end
+
+  opts.on("--force", "Replace an existing file or symlink at the destination") do
+    options[:force] = true
+  end
+end
+
+parser.parse!(ARGV)
+
+source = File.realpath(File.expand_path("knyle-share", __dir__))
+destination = File.join(File.expand_path(options[:bin_dir]), options[:executable_name])
+
+if File.exist?(destination) || File.symlink?(destination)
+  same_target =
+    File.symlink?(destination) &&
+    begin
+      File.realpath(destination) == source
+    rescue Errno::ENOENT
+      false
+    end
+
+  if same_target
+    puts "CLI already installed at #{destination}."
+    exit 0
+  end
+
+  unless options[:force]
+    warn "Refusing to overwrite existing #{destination}. Re-run with --force if you want to replace it."
+    exit 1
+  end
+
+  FileUtils.rm_f(destination)
+end
+
+FileUtils.mkdir_p(File.dirname(destination))
+FileUtils.ln_s(source, destination)
+
+puts "Installed #{destination} -> #{source}"
+
+path_entries = ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).map { |entry| File.expand_path(entry) }
+unless path_entries.include?(File.dirname(destination))
+  warn "#{File.dirname(destination)} is not currently on PATH."
+end

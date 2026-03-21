@@ -326,6 +326,25 @@ class KnyleShareCliTest < ActiveSupport::TestCase
     end
   end
 
+  test "can run through a symlinked executable outside the repo" do
+    Dir.mktmpdir("knyle-share-bin") do |dir|
+      symlink_path = File.join(dir, "knyle-share")
+      File.symlink(Rails.root.join("bin/knyle-share"), symlink_path)
+
+      stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        symlink_path,
+        "--help",
+        chdir: dir
+      )
+
+      assert_predicate status, :success?
+      assert_equal "", stderr
+      assert_includes stdout, "knyle-share login"
+      assert_includes stdout, "knyle-share <path> [options]"
+    end
+  end
+
   private
 
   def with_fake_server(existing_slug: nil)
