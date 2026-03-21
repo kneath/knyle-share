@@ -3,7 +3,7 @@ require "json"
 require "optparse"
 
 module KnyleShare
-  class CLI
+  class Cli
     LINK_PRESETS = {
       "1_day" => "1 day",
       "1_week" => "1 week",
@@ -420,4 +420,6 @@ module KnyleShare
       0
     end
   end
+
+  CLI = Cli
 end

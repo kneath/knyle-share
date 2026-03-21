@@ -4,4 +4,4 @@ $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 
 require "knyle_share"
 
-exit KnyleShare::CLI.new.run(ARGV)
+exit KnyleShare::Cli.new.run(ARGV)
