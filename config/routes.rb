@@ -24,6 +24,9 @@ Rails.application.routes.draw do
         end
       end
       get "bundles", to: "bundles#index", as: :bundles
+      get "bundles/new", to: "uploads#new", as: :new_bundle
+      post "uploads", to: "uploads#create", as: :uploads
+      post "uploads/:id/process", to: "uploads#process_upload", as: :process_upload
       get "bundles/:id", to: "bundles#show", as: :bundle
       patch "bundles/:id/status", to: "bundles#update_status", as: :bundle_status
       patch "bundles/:id/password", to: "bundles#update_password", as: :bundle_password
