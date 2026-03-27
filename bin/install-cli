@@ -5,7 +5,8 @@ require "optparse"
 
 options = {
   bin_dir: "/usr/local/bin",
-  executable_name: "knyle-share",
+  executable_name: nil,
+  dev: false,
   force: false
 }
 
@@ -16,8 +17,12 @@ parser = OptionParser.new do |opts|
     options[:bin_dir] = value
   end
 
-  opts.on("--name NAME", "Executable name (default: knyle-share)") do |value|
+  opts.on("--name NAME", "Executable name (overrides default)") do |value|
     options[:executable_name] = value
+  end
+
+  opts.on("--dev", "Install the dev CLI (dev-knyle-share) instead of the production CLI") do
+    options[:dev] = true
   end
 
   opts.on("--force", "Replace an existing file or symlink at the destination") do
@@ -27,8 +32,11 @@ end
 
 parser.parse!(ARGV)
 
-source = File.realpath(File.expand_path("knyle-share", __dir__))
-destination = File.join(File.expand_path(options[:bin_dir]), options[:executable_name])
+source_name = options[:dev] ? "dev-knyle-share" : "knyle-share"
+executable_name = options[:executable_name] || source_name
+
+source = File.realpath(File.expand_path(source_name, __dir__))
+destination = File.join(File.expand_path(options[:bin_dir]), executable_name)
 
 if File.exist?(destination) || File.symlink?(destination)
   same_target =

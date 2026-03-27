@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+
+script_path = File.realpath(__FILE__)
+repo_root = File.expand_path("..", File.dirname(script_path))
+
+$LOAD_PATH.unshift(File.join(repo_root, "lib"))
+
+require "knyle_share"
+
+config_store = KnyleShare::ConfigStore.new(
+  env: ENV,
+  default_config_name: "dev-config.json"
+)
+
+exit KnyleShare::Cli.new(config_store:).run(ARGV)

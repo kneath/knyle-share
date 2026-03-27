@@ -3,8 +3,9 @@ require "json"
 
 module KnyleShare
   class ConfigStore
-    def initialize(env: ENV)
+    def initialize(env: ENV, default_config_name: "config.json")
       @env = env
+      @default_config_name = default_config_name
     end
 
     def load
@@ -24,7 +25,7 @@ module KnyleShare
     end
 
     def path
-      env["KNYLE_SHARE_CONFIG"] || File.join(config_root, "knyle-share", "config.json")
+      env["KNYLE_SHARE_CONFIG"] || File.join(config_root, "knyle-share", @default_config_name)
     end
 
     private
