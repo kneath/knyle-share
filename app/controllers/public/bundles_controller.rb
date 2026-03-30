@@ -63,13 +63,21 @@ module Public
             request_path: request.path
           )
 
-          @image_url = storage.download_url(
-            @entry_asset,
-            disposition: "inline",
-            expires_in: storage.public_asset_redirect_ttl_seconds,
-            response_cache_control: bundle_asset_response_cache_control
-          )
+          @image_url = inline_asset_url(@entry_asset)
           render :image_display
+
+        elsif displayable_video?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :video_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @video_url = inline_asset_url(@entry_asset)
+          render :video_display
         else
           return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
@@ -188,8 +196,25 @@ module Public
       image/jpeg image/png image/gif image/webp image/svg+xml
     ].freeze
 
+    DISPLAYABLE_VIDEO_CONTENT_TYPES = %w[
+      video/mp4 video/webm video/quicktime
+    ].freeze
+
     def displayable_image?(asset)
       DISPLAYABLE_IMAGE_CONTENT_TYPES.include?(asset.content_type)
+    end
+
+    def displayable_video?(asset)
+      DISPLAYABLE_VIDEO_CONTENT_TYPES.include?(asset.content_type)
+    end
+
+    def inline_asset_url(asset)
+      storage.download_url(
+        asset,
+        disposition: "inline",
+        expires_in: storage.public_asset_redirect_ttl_seconds,
+        response_cache_control: bundle_asset_response_cache_control
+      )
     end
 
     def requested_asset_path
