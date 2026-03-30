@@ -1,0 +1,85 @@
+<% content_for :title, "New bundle · Knyle Share" %>
+
+<div class="page">
+  <%= render "admin/shared/header" %>
+
+  <main>
+    <div class="container">
+      <div class="page-title">
+        <h1>New bundle</h1>
+      </div>
+
+      <div class="card" data-controller="upload">
+        <div data-upload-target="error" class="upload-error" hidden></div>
+
+        <div data-upload-target="form">
+          <div data-upload-target="dropZone" class="drop-zone"
+               data-action="dragenter->upload#dragenter dragleave->upload#dragleave dragover->upload#dragover drop->upload#drop click->upload#browse">
+            <input type="file" data-upload-target="fileInput" data-action="change->upload#fileChosen" hidden>
+            <div class="drop-zone-content">
+              <div class="drop-zone-icon">&#8693;</div>
+              <p>Drop a file here or <button type="button" class="link-button" data-action="upload#browse">browse</button></p>
+            </div>
+          </div>
+
+          <div data-upload-target="fileSelected" class="file-selected" hidden>
+            <div class="file-selected-info">
+              <span data-upload-target="fileName"></span>
+              <span data-upload-target="fileSize" class="text-muted"></span>
+            </div>
+            <button type="button" class="btn-small btn-ghost" data-action="upload#clearFile">Remove</button>
+          </div>
+
+          <div class="stack-form mt-3">
+            <div class="field-group">
+              <label for="slug-input">Slug</label>
+              <input type="text" id="slug-input" data-upload-target="slug" class="text-input" placeholder="my-bundle" pattern="[a-z0-9]+(-[a-z0-9]+)*">
+              <p class="field-note">Lowercase letters, numbers, and hyphens. Auto-derived from filename if left blank.</p>
+            </div>
+
+            <div class="field-group">
+              <label>Access</label>
+              <div class="pill-group" data-action="change->upload#accessModeChanged">
+                <label class="pill is-selected">
+                  <input type="radio" name="access_mode" value="protected" checked hidden>
+                  Protected
+                </label>
+                <label class="pill">
+                  <input type="radio" name="access_mode" value="public" hidden>
+                  Public
+                </label>
+              </div>
+            </div>
+
+            <div class="field-group" data-upload-target="passwordGroup">
+              <label>Password</label>
+              <div class="pill-group mb-1" data-action="change->upload#passwordStrategyChanged">
+                <label class="pill is-selected">
+                  <input type="radio" name="password_strategy" value="generated" checked hidden>
+                  Generate
+                </label>
+                <label class="pill">
+                  <input type="radio" name="password_strategy" value="custom" hidden>
+                  Custom
+                </label>
+              </div>
+              <input type="text" data-upload-target="passwordInput" class="text-input" placeholder="Custom password" hidden>
+            </div>
+
+            <div class="button-row">
+              <button type="button" class="btn btn-primary" data-upload-target="uploadButton" data-action="upload#upload" disabled>Upload</button>
+              <a href="<%= admin_bundles_path %>" class="btn btn-ghost">Cancel</a>
+            </div>
+          </div>
+        </div>
+
+        <div data-upload-target="progress" class="upload-progress" hidden>
+          <div data-upload-target="status" class="upload-status">Preparing upload&hellip;</div>
+          <div class="progress-bar-track">
+            <div data-upload-target="progressBar" class="progress-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
