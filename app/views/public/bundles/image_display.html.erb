@@ -1,0 +1,20 @@
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+
+<div class="image-display">
+  <div class="image-display-viewport">
+    <img src="<%= @image_url %>" alt="<%= @bundle.title %>">
+  </div>
+
+  <footer class="image-display-actions">
+    <div>
+      <h1><%= @bundle.title %></h1>
+      <p class="text-muted">
+        <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
+      </p>
+    </div>
+
+    <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
+      Download file
+    </a>
+  </footer>
+</div>

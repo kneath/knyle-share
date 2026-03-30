@@ -52,15 +52,35 @@ module Public
         end
       when "single_download"
         @entry_asset = entry_asset
-        return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
-        record_bundle_view(
-          bundle: @bundle,
-          viewer_session: result.viewer_session,
-          access_method: result.access_method,
-          request_path: request.path
-        )
-        render :single_download
+        if displayable_image?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :image_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @image_url = storage.download_url(
+            @entry_asset,
+            disposition: "inline",
+            expires_in: storage.public_asset_redirect_ttl_seconds,
+            response_cache_control: bundle_asset_response_cache_control
+          )
+          render :image_display
+        else
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+          render :single_download
+        end
       when "file_listing"
         @current_file_listing_prefix = requested_file_listing_prefix
         if @current_file_listing_prefix == INVALID_FILE_LISTING_PREFIX
@@ -163,6 +183,14 @@ module Public
     end
 
     private
+
+    DISPLAYABLE_IMAGE_CONTENT_TYPES = %w[
+      image/jpeg image/png image/gif image/webp image/svg+xml
+    ].freeze
+
+    def displayable_image?(asset)
+      DISPLAYABLE_IMAGE_CONTENT_TYPES.include?(asset.content_type)
+    end
 
     def requested_asset_path
       [params[:asset_path], params[:format]].compact.join(".")

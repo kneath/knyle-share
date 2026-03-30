@@ -119,6 +119,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       byte_size: 128
     )
 
+    @public_image = Bundle.create!(
+      slug: "sunset-photo",
+      title: "Sunset Photo",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "sunset.jpg"
+    )
+    @public_image.assets.create!(
+      path: "sunset.jpg",
+      storage_key: "bundles/#{@public_image.id}/1/sunset.jpg",
+      content_type: "image/jpeg",
+      byte_size: 1_500_000
+    )
+
     @disabled_bundle = Bundle.create!(
       slug: "retired-plan",
       title: "Retired Plan",
@@ -300,6 +316,34 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
 
     assert_response :unauthorized
     assert_match "invalid or has expired", response.body
+  end
+
+  test "image bundles render an inline image display instead of the download card" do
+    with_stubbed_storage("sunset.jpg" => "fake jpeg bytes") do |fake_storage|
+      perform_enqueued_jobs do
+        get "http://sunset-photo.share.lvh.me/"
+      end
+
+      assert_response :success
+      assert_match "image-display", response.body
+      assert_match "sunset-photo.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_image.reload.total_views_count
+    end
+  end
+
+  test "non-image single downloads still render the download card" do
+    with_stubbed_storage("private-brief.pdf" => "%PDF-1.7 mock") do
+      perform_enqueued_jobs do
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+        follow_redirect!
+      end
+
+      assert_response :success
+      assert_no_match "image-display", response.body
+      assert_match "Download file", response.body
+    end
   end
 
   test "static-site bundle paths on the shared host redirect to the isolated bundle host" do
