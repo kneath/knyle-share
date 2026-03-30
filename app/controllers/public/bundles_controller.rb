@@ -78,6 +78,18 @@ module Public
 
           @video_url = inline_asset_url(@entry_asset)
           render :video_display
+        elsif displayable_pdf?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :pdf_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @pdf_url = inline_asset_url(@entry_asset)
+          render :pdf_display
         else
           return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
@@ -206,6 +218,10 @@ module Public
 
     def displayable_video?(asset)
       DISPLAYABLE_VIDEO_CONTENT_TYPES.include?(asset.content_type)
+    end
+
+    def displayable_pdf?(asset)
+      asset.content_type == "application/pdf"
     end
 
     def inline_asset_url(asset)

@@ -151,6 +151,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       byte_size: 10_000_000
     )
 
+    @public_pdf = Bundle.create!(
+      slug: "trail-proposal",
+      title: "Trail Proposal",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "proposal.pdf"
+    )
+    @public_pdf.assets.create!(
+      path: "proposal.pdf",
+      storage_key: "bundles/#{@public_pdf.id}/1/proposal.pdf",
+      content_type: "application/pdf",
+      byte_size: 4_500_000
+    )
+
     @disabled_bundle = Bundle.create!(
       slug: "retired-plan",
       title: "Retired Plan",
@@ -365,16 +381,19 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "non-image single downloads still render the download card" do
-    with_stubbed_storage("private-brief.pdf" => "%PDF-1.7 mock") do
+  test "pdf bundles render an inline pdf viewer instead of the download card" do
+    with_stubbed_storage("proposal.pdf" => "%PDF-1.7 mock") do |fake_storage|
       perform_enqueued_jobs do
-        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
-        follow_redirect!
+        get "http://trail-proposal.share.lvh.me/"
       end
 
       assert_response :success
-      assert_no_match "image-display", response.body
-      assert_match "Download file", response.body
+      assert_match "pdf-display", response.body
+      assert_match "<iframe", response.body
+      assert_match "trail-proposal.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_pdf.reload.total_views_count
     end
   end
 

@@ -586,6 +586,38 @@ button,
   margin-bottom: 0.15rem;
 }
 
+/* --------------------------------------------------------
+   PDF display
+   -------------------------------------------------------- */
+
+.pdf-display {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.pdf-display-viewport {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  width: 100%;
+}
+
+.pdf-display-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.pdf-display-actions h1 {
+  font-size: 1rem;
+  margin-bottom: 0.15rem;
+}
+
 @media (max-width: 720px) {
   .bundle-item {
     flex-direction: column;
@@ -597,7 +629,8 @@ button,
   }
 
   .image-display-actions,
-  .video-display-actions {
+  .video-display-actions,
+  .pdf-display-actions {
     flex-direction: column;
     align-items: flex-start;
   }
