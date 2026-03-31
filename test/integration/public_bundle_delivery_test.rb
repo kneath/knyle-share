@@ -119,6 +119,70 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       byte_size: 128
     )
 
+    @public_image = Bundle.create!(
+      slug: "sunset-photo",
+      title: "Sunset Photo",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "sunset.jpg"
+    )
+    @public_image.assets.create!(
+      path: "sunset.jpg",
+      storage_key: "bundles/#{@public_image.id}/1/sunset.jpg",
+      content_type: "image/jpeg",
+      byte_size: 1_500_000
+    )
+
+    @public_video = Bundle.create!(
+      slug: "demo-clip",
+      title: "Demo Clip",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "demo.mp4"
+    )
+    @public_video.assets.create!(
+      path: "demo.mp4",
+      storage_key: "bundles/#{@public_video.id}/1/demo.mp4",
+      content_type: "video/mp4",
+      byte_size: 10_000_000
+    )
+
+    @public_pdf = Bundle.create!(
+      slug: "trail-proposal",
+      title: "Trail Proposal",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "proposal.pdf"
+    )
+    @public_pdf.assets.create!(
+      path: "proposal.pdf",
+      storage_key: "bundles/#{@public_pdf.id}/1/proposal.pdf",
+      content_type: "application/pdf",
+      byte_size: 4_500_000
+    )
+
+    @public_audio = Bundle.create!(
+      slug: "podcast-clip",
+      title: "Podcast Clip",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "clip.mp3"
+    )
+    @public_audio.assets.create!(
+      path: "clip.mp3",
+      storage_key: "bundles/#{@public_audio.id}/1/clip.mp3",
+      content_type: "audio/mpeg",
+      byte_size: 3_200_000
+    )
+
     @disabled_bundle = Bundle.create!(
       slug: "retired-plan",
       title: "Retired Plan",
@@ -300,6 +364,69 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
 
     assert_response :unauthorized
     assert_match "invalid or has expired", response.body
+  end
+
+  test "image bundles render an inline image display instead of the download card" do
+    with_stubbed_storage("sunset.jpg" => "fake jpeg bytes") do |fake_storage|
+      perform_enqueued_jobs do
+        get "http://sunset-photo.share.lvh.me/"
+      end
+
+      assert_response :success
+      assert_match "image-display", response.body
+      assert_match "sunset-photo.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_image.reload.total_views_count
+    end
+  end
+
+  test "video bundles render an inline video player instead of the download card" do
+    with_stubbed_storage("demo.mp4" => "fake mp4 bytes") do |fake_storage|
+      perform_enqueued_jobs do
+        get "http://demo-clip.share.lvh.me/"
+      end
+
+      assert_response :success
+      assert_match "video-display", response.body
+      assert_match "<video", response.body
+      assert_match "demo-clip.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_video.reload.total_views_count
+    end
+  end
+
+  test "pdf bundles render an inline pdf viewer instead of the download card" do
+    with_stubbed_storage("proposal.pdf" => "%PDF-1.7 mock") do |fake_storage|
+      perform_enqueued_jobs do
+        get "http://trail-proposal.share.lvh.me/"
+      end
+
+      assert_response :success
+      assert_match "pdf-display", response.body
+      assert_match "<iframe", response.body
+      assert_match "trail-proposal.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_pdf.reload.total_views_count
+    end
+  end
+
+  test "audio bundles render an inline audio player instead of the download card" do
+    with_stubbed_storage("clip.mp3" => "fake mp3 bytes") do |fake_storage|
+      perform_enqueued_jobs do
+        get "http://podcast-clip.share.lvh.me/"
+      end
+
+      assert_response :success
+      assert_match "audio-display", response.body
+      assert_match "audio-player", response.body
+      assert_match "podcast-clip.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_audio.reload.total_views_count
+    end
   end
 
   test "static-site bundle paths on the shared host redirect to the isolated bundle host" do

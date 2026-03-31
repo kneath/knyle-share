@@ -52,15 +52,67 @@ module Public
         end
       when "single_download"
         @entry_asset = entry_asset
-        return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
-        record_bundle_view(
-          bundle: @bundle,
-          viewer_session: result.viewer_session,
-          access_method: result.access_method,
-          request_path: request.path
-        )
-        render :single_download
+        if displayable_image?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :image_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @image_url = inline_asset_url(@entry_asset)
+          render :image_display
+
+        elsif displayable_video?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :video_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @video_url = inline_asset_url(@entry_asset)
+          render :video_display
+        elsif displayable_pdf?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :pdf_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @pdf_url = inline_asset_url(@entry_asset)
+          render :pdf_display
+        elsif displayable_audio?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :audio_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @audio_url = inline_asset_url(@entry_asset)
+          render :audio_display
+        else
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+          render :single_download
+        end
       when "file_listing"
         @current_file_listing_prefix = requested_file_listing_prefix
         if @current_file_listing_prefix == INVALID_FILE_LISTING_PREFIX
@@ -163,6 +215,39 @@ module Public
     end
 
     private
+
+    DISPLAYABLE_IMAGE_CONTENT_TYPES = %w[
+      image/jpeg image/png image/gif image/webp image/svg+xml
+    ].freeze
+
+    DISPLAYABLE_VIDEO_CONTENT_TYPES = %w[
+      video/mp4 video/webm video/quicktime
+    ].freeze
+
+    def displayable_image?(asset)
+      DISPLAYABLE_IMAGE_CONTENT_TYPES.include?(asset.content_type)
+    end
+
+    def displayable_video?(asset)
+      DISPLAYABLE_VIDEO_CONTENT_TYPES.include?(asset.content_type)
+    end
+
+    def displayable_pdf?(asset)
+      asset.content_type == "application/pdf"
+    end
+
+    def displayable_audio?(asset)
+      asset.content_type&.start_with?("audio/")
+    end
+
+    def inline_asset_url(asset)
+      storage.download_url(
+        asset,
+        disposition: "inline",
+        expires_in: storage.public_asset_redirect_ttl_seconds,
+        response_cache_control: bundle_asset_response_cache_control
+      )
+    end
 
     def requested_asset_path
       [params[:asset_path], params[:format]].compact.join(".")
