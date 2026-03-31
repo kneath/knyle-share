@@ -461,6 +461,10 @@
   background: var(--color-surface);
 }
 
+.file-selected[hidden] {
+  display: none;
+}
+
 .file-selected-name {
   font-weight: 500;
 }
