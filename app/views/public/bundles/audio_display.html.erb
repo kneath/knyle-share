@@ -1,0 +1,21 @@
+<% content_for :title, "#{@bundle.title} · Knyle Share" %>
+
+<div class="page-centered">
+  <div class="audio-display" data-controller="audio-player" data-audio-player-url-value="<%= @audio_url %>">
+    <h1><%= @bundle.title %></h1>
+    <p class="text-muted"><%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %></p>
+
+    <canvas class="audio-display-waveform" data-audio-player-target="waveform" data-action="click->audio-player#seek"></canvas>
+
+    <div class="audio-display-controls">
+      <button class="btn btn-secondary" data-audio-player-target="playPause" data-action="audio-player#toggle">Play</button>
+      <span class="audio-display-time" data-audio-player-target="time">0:00 / 0:00</span>
+    </div>
+
+    <audio preload="metadata" data-audio-player-target="audio"></audio>
+
+    <a class="btn btn-primary btn-full" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
+      Download file
+    </a>
+  </div>
+</div>

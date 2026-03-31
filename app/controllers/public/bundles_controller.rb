@@ -90,6 +90,18 @@ module Public
 
           @pdf_url = inline_asset_url(@entry_asset)
           render :pdf_display
+        elsif displayable_audio?(@entry_asset)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :audio_display)
+
+          record_bundle_view(
+            bundle: @bundle,
+            viewer_session: result.viewer_session,
+            access_method: result.access_method,
+            request_path: request.path
+          )
+
+          @audio_url = inline_asset_url(@entry_asset)
+          render :audio_display
         else
           return unless stale_bundle_page?(asset: @entry_asset, variant: :single_download)
 
@@ -222,6 +234,10 @@ module Public
 
     def displayable_pdf?(asset)
       asset.content_type == "application/pdf"
+    end
+
+    def displayable_audio?(asset)
+      asset.content_type&.start_with?("audio/")
     end
 
     def inline_asset_url(asset)

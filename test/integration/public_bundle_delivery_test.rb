@@ -167,6 +167,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       byte_size: 4_500_000
     )
 
+    @public_audio = Bundle.create!(
+      slug: "podcast-clip",
+      title: "Podcast Clip",
+      source_kind: "file",
+      presentation_kind: "single_download",
+      access_mode: "public",
+      status: "active",
+      entry_path: "clip.mp3"
+    )
+    @public_audio.assets.create!(
+      path: "clip.mp3",
+      storage_key: "bundles/#{@public_audio.id}/1/clip.mp3",
+      content_type: "audio/mpeg",
+      byte_size: 3_200_000
+    )
+
     @disabled_bundle = Bundle.create!(
       slug: "retired-plan",
       title: "Retired Plan",
@@ -394,6 +410,22 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_equal 1, fake_storage.downloads.size
       assert_equal "inline", fake_storage.downloads.first[:disposition]
       assert_equal 1, @public_pdf.reload.total_views_count
+    end
+  end
+
+  test "audio bundles render an inline audio player instead of the download card" do
+    with_stubbed_storage("clip.mp3" => "fake mp3 bytes") do |fake_storage|
+      perform_enqueued_jobs do
+        get "http://podcast-clip.share.lvh.me/"
+      end
+
+      assert_response :success
+      assert_match "audio-display", response.body
+      assert_match "audio-player", response.body
+      assert_match "podcast-clip.share.lvh.me/download", response.body
+      assert_equal 1, fake_storage.downloads.size
+      assert_equal "inline", fake_storage.downloads.first[:disposition]
+      assert_equal 1, @public_audio.reload.total_views_count
     end
   end
 
