@@ -1,6 +1,6 @@
 # Knyle Share
 
-Knyle Share is a little app designed to share bundles to the internet — markdown files, images, audio files, videos, or even small static sites. You can upload them from your computer a CLI, with the included LLM Skill, or from the hosted admin panel. 
+Knyle Share is a little app designed to share bundles to the internet — markdown files, images, audio files, videos, or even small static sites. You can upload them from your computer with a CLI, the included LLM Skill, or from the web admin panel. 
 
 It's an easy way to get things off your computer onto the internet, hosted by you on your servers and your domains.
 
