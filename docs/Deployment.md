@@ -4,13 +4,13 @@ This is the production deployment runbook for Knyle Share as the application exi
 
 The default and documented production target is Render, using the checked-in [render.yaml](/Users/kneath/code/kneath/knyle-share/render.yaml) Blueprint. The app is built around:
 
-- one Render Ruby web service
-- one persistent disk mounted at `/var/data`
+- One Render Ruby web service
+- One persistent disk mounted at `/var/data`
 - SQLite stored at `/var/data/production.sqlite3`
-- private S3 object storage for bundle contents
+- Private S3 object storage for bundle contents
 - GitHub OAuth for the admin sign-in flow
-- host-based routing with separate admin and public hosts
-- wildcard public subdomains for bundle delivery
+- Host-based routing with separate admin and public hosts
+- Wildcard public subdomains for bundle delivery
 
 If you follow this document in order, you should end with a working deployment that can accept uploads and serve bundles publicly.
 
@@ -39,11 +39,11 @@ Important constraints:
 
 Before touching production, make sure you have:
 
-- a Git repo containing this project pushed to GitHub, GitLab, or Bitbucket
-- a Render workspace
-- a domain you control in DNS
-- an AWS account that can create an S3 bucket and IAM credentials
-- a GitHub account or organization where you can create an OAuth app
+- A Git repo containing this project pushed to GitHub, GitLab, or Bitbucket
+- A Render workspace
+- A domain you control in DNS
+- An AWS account that can create an S3 bucket and IAM credentials
+- A GitHub account or organization where you can create an OAuth app
 - local access to this repo so you can run verification commands and the CLI
 
 Run the app test suite from the repo root before deploying:
@@ -67,7 +67,7 @@ Recommended shape:
 
 - `ADMIN_HOST=admin.example.com`
 - `PUBLIC_HOST=share.example.com`
-- bundle hosts will be `*.share.example.com`
+- Bundle hosts will be `*.share.example.com`
 
 Replace `example.com` throughout this guide with your real domain.
 
@@ -127,10 +127,10 @@ Create a customer-managed IAM policy for the bucket, replacing `YOUR_BUCKET_NAME
 
 The setup validator performs a real S3 round trip, so the credentials must be able to:
 
-- list the bucket
-- read objects
-- write objects
-- delete objects
+- List the bucket
+- Read objects
+- Write objects
+- Delete objects
 
 ### 3.3 Create an IAM user or access key
 
@@ -192,14 +192,14 @@ In Render:
 
 The current Blueprint defines:
 
-- service name `knyle-share`
-- runtime `ruby`
-- plan `starter`
-- build command `bundle install && bundle exec rails assets:precompile`
-- start command `bundle exec rails db:prepare && bundle exec puma -C config/puma.rb`
-- health check path `/up`
-- a persistent disk mounted at `/var/data`
-- generated `SECRET_KEY_BASE`
+- Service name `knyle-share`
+- Runtime `ruby`
+- Plan `starter`
+- Build command `bundle install && bundle exec rails assets:precompile`
+- Start command `bundle exec rails db:prepare && bundle exec puma -C config/puma.rb`
+- Health check path `/up`
+- A persistent disk mounted at `/var/data`
+- Generated `SECRET_KEY_BASE`
 
 ## 6. Set the Environment Variables
 
@@ -251,23 +251,23 @@ The Blueprint already defines the disk, but verify it in the Render dashboard af
 
 The disk must be:
 
-- attached to the `knyle-share` web service
-- mounted at `/var/data`
-- large enough for the SQLite database and any future operational files
+- Attached to the `knyle-share` web service
+- Mounted at `/var/data`
+- Large enough for the SQLite database and any future operational files
 
 Current repo defaults:
 
-- mount path: `/var/data`
+- Mount path: `/var/data`
 - SQLite file path: `/var/data/production.sqlite3`
-- size: `1 GB`
+- Size: `1 GB`
 
 Do not change the mount path unless you also change `DATABASE_PATH`.
 
 Remember:
 
-- only files written under `/var/data` persist across deploys and restarts
-- the disk is only available to the running service, not to the build step
-- a disk-backed service cannot be safely scaled to multiple instances
+- Only files written under `/var/data` persist across deploys and restarts
+- The disk is only available to the running service, not to the build step
+- A disk-backed service cannot be safely scaled to multiple instances
 
 ## 8. Add Custom Domains and DNS
 
@@ -382,7 +382,7 @@ bin/knyle-share login
 
 Provide:
 
-- admin URL: `https://admin.example.com`
+- Admin URL: `https://admin.example.com`
 - API token: the token you just created
 
 ### 11.4 Publish a real test bundle
@@ -395,35 +395,35 @@ bin/knyle-share README.md --protected --generate-password
 
 Verify all of the following:
 
-- the CLI upload succeeds
-- the app returns a share URL on a bundle subdomain
-- the password gate works
-- the document renders after access is granted
-- download or raw routes work when appropriate
+- The CLI upload succeeds
+- The app returns a share URL on a bundle subdomain
+- The password gate works
+- The document renders after access is granted
+- Download or raw routes work when appropriate
 
 This validates the full production chain:
 
-- admin authentication
+- Admin authentication
 - API token auth
-- upload processing
+- Upload processing
 - S3 write access
-- bundle routing on wildcard domains
-- protected public delivery
+- Bundle routing on wildcard domains
+- Protected public delivery
 
 ## 12. Ongoing Deploys
 
 After the first deployment:
 
-- pushing changes to the linked branch will trigger new deploys unless auto-deploy is disabled
-- startup will continue to run `db:prepare`, so committed migrations apply on boot
-- the SQLite database remains on the persistent disk across deploys
-- if `SENTRY_DSN` is configured, unhandled server-side exceptions are reported to Sentry automatically
+- Pushing changes to the linked branch will trigger new deploys unless auto-deploy is disabled
+- Startup will continue to run `db:prepare`, so committed migrations apply on boot
+- The SQLite database remains on the persistent disk across deploys
+- If `SENTRY_DSN` is configured, unhandled server-side exceptions are reported to Sentry automatically
 
 If you change any of these, update all related systems together:
 
 - `ADMIN_HOST`
 - `PUBLIC_HOST`
-- custom domains in Render
+- Custom domains in Render
 - DNS records
 - GitHub OAuth callback URL
 
@@ -433,39 +433,39 @@ If you change any of these, update all related systems together:
 
 Cause:
 
-- one or more required Render env vars were not set, were misspelled, or were saved on the wrong service
+- One or more required Render env vars were not set, were misspelled, or were saved on the wrong service
 
 Fix:
 
-- compare the Render environment page against the required list in this document
-- redeploy after correcting the values
+- Compare the Render environment page against the required list in this document
+- Redeploy after correcting the values
 
 ### Setup says the database is not migrated
 
 Cause:
 
-- boot did not finish `db:prepare`
-- the app cannot write to the configured database path
+- Boot did not finish `db:prepare`
+- The app cannot write to the configured database path
 
 Fix:
 
-- check deploy logs
-- confirm the disk is mounted at `/var/data`
-- confirm `DATABASE_PATH=/var/data/production.sqlite3`
+- Check deploy logs
+- Confirm the disk is mounted at `/var/data`
+- Confirm `DATABASE_PATH=/var/data/production.sqlite3`
 
 ### Setup says the S3 bucket is unreachable
 
 Cause:
 
-- wrong bucket name
-- wrong AWS credentials
+- Wrong bucket name
+- Wrong AWS credentials
 - IAM policy missing required actions
 
 Fix:
 
-- verify `S3_BUCKET`
-- verify the access key pair
-- verify the IAM policy includes `s3:ListBucket`, `s3:GetBucketLocation`, `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject`
+- Verify `S3_BUCKET`
+- Verify the access key pair
+- Verify the IAM policy includes `s3:ListBucket`, `s3:GetBucketLocation`, `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject`
 
 ### Setup says the bucket region is wrong
 
@@ -475,56 +475,55 @@ Cause:
 
 Fix:
 
-- update `AWS_REGION` to the real bucket region and redeploy
+- Update `AWS_REGION` to the real bucket region and redeploy
 
 ### GitHub sign-in fails
 
 Cause:
 
-- incorrect `GITHUB_CLIENT_ID` or `GITHUB_CLIENT_SECRET`
-- callback URL in GitHub does not exactly match `https://ADMIN_HOST/auth/github/callback`
+- Incorrect `GITHUB_CLIENT_ID` or `GITHUB_CLIENT_SECRET`
+- Callback URL in GitHub does not exactly match `https://ADMIN_HOST/auth/github/callback`
 - DNS or TLS for `ADMIN_HOST` is not fully ready
 
 Fix:
 
-- verify the GitHub OAuth app settings
-- verify the Render custom domain is active and serving HTTPS
+- Verify the GitHub OAuth app settings
+- Verify the Render custom domain is active and serving HTTPS
 
 ### The admin or public site works, but bundle subdomains do not
 
 Cause:
 
-- wildcard custom domain was not added in Render
-- wildcard DNS records were not created
+- Wildcard custom domain was not added in Render
+- Wildcard DNS records were not created
 - TLS for the wildcard domain has not finished issuing
 
 Fix:
 
-- add `*.PUBLIC_HOST` as a custom domain
-- create all Render-required wildcard CNAME records
-- wait for verification and TLS completion
+- Add `*.PUBLIC_HOST` as a custom domain
+- Create all Render-required wildcard CNAME records
+- Wait for verification and TLS completion
 
 ### Deploys briefly interrupt traffic
 
 Cause:
 
-- expected behavior for a Render service with a persistent disk
+- Expected behavior for a Render service with a persistent disk
 
 Fix:
 
-- none for the current architecture
-- if you need zero-downtime deploys or multiple instances, plan a move away from SQLite-on-disk
+- None for the current architecture
+- If you need zero-downtime deploys or multiple instances, plan a move away from SQLite-on-disk
 
 ## References
 
 Repo references:
 
-- [render.yaml](/Users/kneath/code/kneath/knyle-share/render.yaml)
-- [README.md](/Users/kneath/code/kneath/knyle-share/README.md)
-- [config/environments/production.rb](/Users/kneath/code/kneath/knyle-share/config/environments/production.rb)
-- [config/routes.rb](/Users/kneath/code/kneath/knyle-share/config/routes.rb)
-- [app/services/setup_validation.rb](/Users/kneath/code/kneath/knyle-share/app/services/setup_validation.rb)
-- [config/initializers/sentry.rb](/Users/kneath/code/kneath/knyle-share/config/initializers/sentry.rb)
+- [render.yaml](../render.yaml)
+- [config/environments/production.rb](/Users../config/environments/production.rb)
+- [config/routes.rb](../config/routes.rb)
+- [app/services/setup_validation.rb](../app/services/setup_validation.rb)
+- [config/initializers/sentry.rb](../config/initializers/sentry.rb)
 
 Official docs:
 

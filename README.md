@@ -1,16 +1,17 @@
 # Knyle Share
 
-Knyle Share is a Rails app for publishing private or public bundles on a public host while keeping administration on a separate admin host.
+Knyle Share is a little app designed to share bundles to the internet — markdown files, images, audio files, videos, or even small static sites. You can upload them from your computer a CLI, with the included LLM Skill, or from the hosted admin panel. 
 
-Current implemented slice:
+It's an easy way to get things off your computer onto the internet, hosted by you on your servers and your domains.
 
-- admin/public host split with host-constrained routing
-- first-run setup validation
-- GitHub OAuth admin claim and sign-in
-- real admin bundle management
-- public bundle delivery with password and signed-link access
-- upload processing and publish pipeline
-- private API and local CLI publishing flow
+Here are a couple of examples:
+
+- I had this markdown file on my computer called [`Principles of Adult Behavior.md`](https://principles-of-adult-behavior.share.warpspire.com/) and I wanted to share it to a friend.
+- I also wanted to show you how I uploaded it, so I [uploaded a screenshot](https://principles-terminal-screen.share.warpspire.com/) with a password `principled` so it wasn't publicly accessible.
+
+It was mostly written by robots. It started with [an idea](shaping/Idea.md), which I used to get the robots to write out a [spec](docs/Spec.md). I also got the robots to write a [technical preferences](TECHNICAL_PREFERENCES.md) doc based on the way I like to write web apps. They made a [plan](sausage/PLAN.md) and built the app with my guidance. Along the way, I've had the robots document their [performance](sausage/PERFORMANCE_FINDINGS.md) and [security](sausage/SECURITY_FINDINGS.md) findings.
+
+I mostly built this for me, but maybe you'll find it interesting too.
 
 ## Requirements
 
@@ -19,8 +20,6 @@ Current implemented slice:
 - SQLite 3
 - An AWS S3 bucket for setup validation
 - A GitHub OAuth app for admin sign-in
-
-Node is not required for local development. The app currently uses importmap and server-rendered Rails views.
 
 ## Local Setup
 
@@ -38,8 +37,8 @@ If you run Rails on a different port, update the callback URL to match.
 
 Create:
 
-- a private S3 bucket for Knyle Share
-- an IAM user or IAM access key pair the app can use
+- A private S3 bucket for Knyle Share
+- An IAM user or IAM access key pair the app can use
 
 When creating the bucket:
 
@@ -93,10 +92,10 @@ Do not create or use root account access keys for this app.
 
 The current setup validator needs S3 permissions to:
 
-- check bucket access
-- upload an object
-- read that object back
-- delete that object
+- Check bucket access
+- Upload an object
+- Read that object back
+- Delete that object
 
 At minimum, make sure the credentials can perform `s3:ListBucket`, `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` for the configured bucket.
 
@@ -160,13 +159,13 @@ bin/setup
 
 `bin/setup` will:
 
-- install gems
-- prepare the database
-- clear old logs and temp files
-- start the Rails server
-- copy `.env.example` to `.env` first if you have not created `.env` yet
+- Install gems
+- Prepare the database
+- Clear old logs and temp files
+- Start the Rails server
+- Copy `.env.example` to `.env` first if you have not created `.env` yet
 
-The development database lives at [storage/development.sqlite3](/Users/kneath/code/kneath/knyle-share/storage/development.sqlite3).
+The development database lives at `storage/development.sqlite3`.
 
 Then open:
 
@@ -184,9 +183,9 @@ Then open:
 
 The setup validator currently checks:
 
-- required environment variables
-- database connectivity
-- pending migrations
+- Required environment variables
+- Database connectivity
+- Pending migrations
 - S3 configuration presence
 - S3 bucket reachability
 - S3 write/read/delete round trip
@@ -203,17 +202,14 @@ The current tests cover:
 
 - `Installation`
 - `SetupValidation`
-- admin auth and bundle management
-- public bundle delivery
-- upload ingest and replacement
-- private API token auth and upload processing
+- Admin auth and bundle management
+- Public bundle delivery
+- Upload ingest and replacement
+- Private API token auth and upload processing
 
-## Useful Endpoints
+## Deployment Runbook
 
-- Admin root: `/` on `ADMIN_HOST`
-- Public root: `/` on `PUBLIC_HOST`
-- All bundles: `/` on `slug.PUBLIC_HOST`
-- Health check: `/up`
+For detailed instructions on how to deploy this application, refer to the **[Deployment Runbook](docs/Deployment.md)**
 
 ## Production Notes
 
@@ -236,15 +232,13 @@ Relevant production env vars:
 - `SENTRY_DSN` optional, enables Sentry exception reporting
 - `SENTRY_TRACES_SAMPLE_RATE` optional, defaults to `0`
 
-The current implementation expects the S3 bucket to be reachable from the app and the GitHub OAuth callback to point at the admin host.
 Public downloads and nested assets are served by short-lived presigned S3 URLs after the app authorizes access, so the bucket stays private while large asset bodies stay off the Rails process.
-`PUBLIC_HOST` is the base public domain, not the domain of an individual bundle. Every bundle is served from `slug.PUBLIC_HOST`, so production deployments need wildcard DNS and TLS coverage for `*.PUBLIC_HOST`.
 
-For production, keep using real environment variables in Render rather than a repo-local `.env` file.
+`PUBLIC_HOST` is the base public domain, not the domain of an individual bundle. Every bundle is served from `slug.PUBLIC_HOST`, so production deployments need wildcard DNS and TLS coverage for `*.PUBLIC_HOST`.
 
 ### Public DNS
 
-Knyle Share now expects three public DNS entry points:
+Knyle Share expects three public DNS entry points:
 
 - `ADMIN_HOST`
   Example: `admin.example.com`
@@ -253,64 +247,7 @@ Knyle Share now expects three public DNS entry points:
 - `*.PUBLIC_HOST`
   Example: `*.share.example.com`
 
-There are no extra environment variables for bundle subdomains. The app derives each bundle host from the bundle slug plus `PUBLIC_HOST`.
-
-At the DNS provider, point all three names at the same Render service:
-
-- `admin.example.com`
-- `share.example.com`
-- `*.share.example.com`
-
-How you do that depends on your DNS provider:
-
-- If Render gives you a hostname target, use `CNAME` or the provider's `ALIAS`/`ANAME` equivalent where appropriate.
-- If your DNS provider requires explicit records for wildcard coverage, create both the base public host and the wildcard public host.
-
 TLS must also cover both the base public host and the wildcard bundle hosts.
-
-## Render Deploy
-
-This repo now includes [render.yaml](/Users/kneath/code/kneath/knyle-share/render.yaml) for the default deployment shape:
-
-- one Ruby web service
-- one persistent disk mounted at `/var/data`
-- SQLite at `/var/data/production.sqlite3`
-- one Puma process
-- `/up` as the health check
-
-Recommended deploy flow:
-
-1. Create the AWS S3 bucket and IAM credentials.
-2. Create the GitHub OAuth app.
-3. In Render, create a new Blueprint service from this repo.
-4. Set the required env vars:
-   - `ADMIN_HOST`
-   - `PUBLIC_HOST`
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_REGION`
-   - `S3_BUCKET`
-   - `GITHUB_CLIENT_ID`
-   - `GITHUB_CLIENT_SECRET`
-   - `SENTRY_DSN` optional, if you want production exception tracking
-5. Attach the persistent disk.
-6. Add public domains to the same Render service:
-   - one admin domain, for example `admin.example.com`
-   - one public domain, for example `share.example.com`
-   - wildcard public subdomains for bundle hosts, for example `*.share.example.com`
-7. Make sure `admin.example.com`, `share.example.com`, and `*.share.example.com` all point at the same Render service and have working TLS.
-8. Update the GitHub OAuth app to use the production admin domain:
-   - Homepage URL: `https://ADMIN_HOST`
-   - Callback URL: `https://ADMIN_HOST/auth/github/callback`
-9. Deploy.
-10. Visit the admin host and run the first-run setup validation before claiming the admin account.
-
-Notes:
-
-- `SECRET_KEY_BASE` is generated automatically by `render.yaml`.
-- Keep `WEB_CONCURRENCY=1` with SQLite on a single Render disk.
-- The admin domain, `PUBLIC_HOST`, and `*.PUBLIC_HOST` should all point at the same Render web service. Host-constrained routes split admin, the threshold page, and bundle delivery inside the app.
-- If `SENTRY_DSN` is set, the app reports server-side exceptions to Sentry and forwards error/fatal log entries as Sentry logs. `SENTRY_TRACES_SAMPLE_RATE` stays `0` unless you explicitly want performance tracing.
 
 ## API Tokens
 
@@ -327,7 +264,7 @@ If you lose the plaintext token, revoke it and create a new one. Only the digest
 
 ## CLI
 
-The repo now includes a local CLI at [bin/knyle-share](/Users/kneath/code/kneath/knyle-share/bin/knyle-share).
+The repo includes a local CLI at `bin/knyle-share`
 
 To install it into `/usr/local/bin` as a symlink back to this repo:
 
