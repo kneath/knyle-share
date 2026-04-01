@@ -1,17 +1,17 @@
 ---
 name: knyle-share-publish
-description: Delegate Knyle Share bundle publishing to the repo's CLI. Use when a user wants to share, publish, upload, or replace a local file or folder through Knyle Share, or when they want a share URL or expiring link for uploaded content.
+description: Publish bundles to Knyle Share using the CLI. Use when a user wants to share, publish, upload, or replace a local file or folder through Knyle Share, or when they want a share URL or expiring link for uploaded content.
 ---
 
 # Knyle Share Publish
 
-Use the repo's CLI instead of reimplementing upload logic or calling the private API directly.
+Use the `knyle-share` CLI instead of reimplementing upload logic or calling the private API directly. The CLI should already be installed on the user's machine and available on their PATH.
 
 ## Workflow
 
 1. Resolve the target path from the user's request or the current working directory.
 2. If the target path is ambiguous or missing, ask a short clarifying question.
-3. Run [`scripts/publish.sh`](./scripts/publish.sh) so the CLI handles slug validation, upload creation, direct S3 upload, publish, and link generation.
+3. Run `knyle-share` so the CLI handles slug validation, upload creation, direct S3 upload, publish, and link generation.
 4. Prefer explicit CLI flags when the user already supplied enough information.
 5. Use the CLI interactively when the user has not supplied enough information for access mode, replacement, or password choices.
 6. Report the resulting share URL, generated password, and expiring link when applicable.
@@ -20,7 +20,7 @@ Use the repo's CLI instead of reimplementing upload logic or calling the private
 
 - Do not call the private upload API yourself when this skill applies.
 - Do not duplicate slug validation, replacement checks, password generation, or signed-link creation in the prompt.
-- If the CLI is not configured yet, run `bin/knyle-share login` through the wrapper script or ask the user for the missing admin URL and API token.
+- If the CLI is not configured yet, run `knyle-share login` or ask the user for the missing admin URL and API token.
 - If the user explicitly wants machine-readable output, add `--json` and return the parsed result.
 - If the user already specified public vs protected access, use `--public` or `--protected`.
 - If the user already supplied a password, use `--password`.
@@ -30,10 +30,8 @@ Use the repo's CLI instead of reimplementing upload logic or calling the private
 
 ## Command Pattern
 
-Run the wrapper script from this skill:
-
 ```bash
-./scripts/publish.sh <path> [flags...]
+knyle-share <path> [flags...]
 ```
 
 Use a TTY when interactive prompts are expected. Use a non-interactive command when all required details are already known.

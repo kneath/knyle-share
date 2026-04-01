@@ -1,9 +1,7 @@
 # CLI Usage
 
-Use the skill's wrapper script so the invocation stays tied to this repo:
-
 ```bash
-./scripts/publish.sh <path> [flags...]
+knyle-share <path> [flags...]
 ```
 
 ## Login
@@ -11,7 +9,7 @@ Use the skill's wrapper script so the invocation stays tied to this repo:
 Run this when the CLI has not been configured yet:
 
 ```bash
-./scripts/publish.sh login
+knyle-share login
 ```
 
 The CLI stores its config in `~/.config/knyle-share/config.json` by default.
@@ -32,17 +30,17 @@ The CLI stores its config in `~/.config/knyle-share/config.json` by default.
 Public folder:
 
 ```bash
-./scripts/publish.sh ./site --public
+knyle-share ./site --public
 ```
 
 Protected markdown file with generated password:
 
 ```bash
-./scripts/publish.sh "./Summer in the Sierra.md" --protected --generate-password
+knyle-share "./Summer in the Sierra.md" --protected --generate-password
 ```
 
 Replace an existing slug and mint a one-week link:
 
 ```bash
-./scripts/publish.sh ./site --slug poke-recipes --replace --protected --generate-password --link-expiration 1_week
+knyle-share ./site --slug poke-recipes --replace --protected --generate-password --link-expiration 1_week
 ```
