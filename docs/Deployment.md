@@ -2,7 +2,7 @@
 
 This is the production deployment runbook for Knyle Share as the application exists today.
 
-The default and documented production target is Render, using the checked-in [render.yaml](/Users/kneath/code/kneath/knyle-share/render.yaml) Blueprint. The app is built around:
+The default and documented production target is Render, using the checked-in [render.yaml](../render.yaml) Blueprint. The app is built around:
 
 - One Render Ruby web service
 - One persistent disk mounted at `/var/data`
@@ -180,7 +180,7 @@ Important notes:
 
 ## 5. Create the Render Blueprint
 
-This repository already includes [render.yaml](/Users/kneath/code/kneath/knyle-share/render.yaml), so the intended setup path is a Blueprint deploy.
+This repository already includes [render.yaml](../knyle-share/render.yaml), so the intended setup path is a Blueprint deploy.
 
 In Render:
 
@@ -520,7 +520,7 @@ Fix:
 Repo references:
 
 - [render.yaml](../render.yaml)
-- [config/environments/production.rb](/Users../config/environments/production.rb)
+- [config/environments/production.rb](../config/environments/production.rb)
 - [config/routes.rb](../config/routes.rb)
 - [app/services/setup_validation.rb](../app/services/setup_validation.rb)
 - [config/initializers/sentry.rb](../config/initializers/sentry.rb)

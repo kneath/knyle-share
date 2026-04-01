@@ -9,7 +9,7 @@ Here are a couple of examples:
 - I had this markdown file on my computer called [`Principles of Adult Behavior.md`](https://principles-of-adult-behavior.share.warpspire.com/) and I wanted to share it to a friend.
 - I also wanted to show you how I uploaded it, so I [uploaded a screenshot](https://principles-terminal-screen.share.warpspire.com/) with a password `principled` so it wasn't publicly accessible.
 
-It was mostly written by robots. It started with [an idea](shaping/Idea.md), which I used to get the robots to write out a [spec](docs/Spec.md). I also got the robots to write a [technical preferences](TECHNICAL_PREFERENCES.md) doc based on the way I like to write web apps. They made a [plan](sausage/PLAN.md) and built the app with my guidance. Along the way, I've had the robots document their [performance](sausage/PERFORMANCE_FINDINGS.md) and [security](sausage/SECURITY_FINDINGS.md) findings.
+It was mostly written by robots. It started with [an idea](shaping/Idea.md), which I used to get the robots to write out a [spec](shaping/Spec.md). I also got the robots to write a [technical preferences](TECHNICAL_PREFERENCES.md) doc based on the way I like to write web apps. They made a [plan](sausage/PLAN.md) and built the app with my guidance. Along the way, I've had the robots document their [performance](sausage/PERFORMANCE_FINDINGS.md) and [security](sausage/SECURITY_FINDINGS.md) findings.
 
 I mostly built this for me, but maybe you'll find it interesting too.
 
