@@ -54,7 +54,7 @@ module Public
         @entry_asset = entry_asset
 
         if displayable_image?(@entry_asset)
-          return unless stale_bundle_page?(asset: @entry_asset, variant: :image_display)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :image_display, extra: presigned_url_cache_bucket)
 
           record_bundle_view(
             bundle: @bundle,
@@ -67,7 +67,7 @@ module Public
           render :image_display
 
         elsif displayable_video?(@entry_asset)
-          return unless stale_bundle_page?(asset: @entry_asset, variant: :video_display)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :video_display, extra: presigned_url_cache_bucket)
 
           record_bundle_view(
             bundle: @bundle,
@@ -79,7 +79,7 @@ module Public
           @video_url = inline_asset_url(@entry_asset)
           render :video_display
         elsif displayable_pdf?(@entry_asset)
-          return unless stale_bundle_page?(asset: @entry_asset, variant: :pdf_display)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :pdf_display, extra: presigned_url_cache_bucket)
 
           record_bundle_view(
             bundle: @bundle,
@@ -91,7 +91,7 @@ module Public
           @pdf_url = inline_asset_url(@entry_asset)
           render :pdf_display
         elsif displayable_audio?(@entry_asset)
-          return unless stale_bundle_page?(asset: @entry_asset, variant: :audio_display)
+          return unless stale_bundle_page?(asset: @entry_asset, variant: :audio_display, extra: presigned_url_cache_bucket)
 
           record_bundle_view(
             bundle: @bundle,
@@ -238,6 +238,12 @@ module Public
 
     def displayable_audio?(asset)
       asset.content_type&.start_with?("audio/")
+    end
+
+    def presigned_url_cache_bucket
+      ttl = storage.public_asset_redirect_ttl_seconds
+      bucket_seconds = [ttl / 2, 60].max
+      Time.current.to_i / bucket_seconds
     end
 
     def inline_asset_url(asset)
