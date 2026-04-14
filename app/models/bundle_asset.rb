@@ -37,7 +37,7 @@ class BundleAsset < ApplicationRecord
   end
 
   def has_prerendered_markdown?
-    rendered_html.present? && rendered_html_version.present?
+    rendered_html.present? && rendered_html_version == BundleMarkdownRenderer::VERSION
   end
 
   def self.file_listing_entries_relation_sql(bundle_id:, prefix:)

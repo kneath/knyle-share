@@ -1,5 +1,24 @@
 class BundleMarkdownRenderer
-  VERSION = 1
+  VERSION = 2
+
+  GFM_OPTIONS = {
+    extension: {
+      table: true,
+      strikethrough: true,
+      autolink: true,
+      tasklist: true,
+      footnotes: true,
+      tagfilter: true
+    }
+  }.freeze
+
+  ALLOWED_TAGS = (Rails::HTML5::SafeListSanitizer.allowed_tags + %w[
+    table thead tbody tfoot tr th td caption colgroup col input
+  ]).freeze
+
+  ALLOWED_ATTRIBUTES = (Rails::HTML5::SafeListSanitizer.allowed_attributes + %w[
+    align colspan rowspan scope type checked disabled
+  ]).freeze
 
   def self.render(body)
     new(body:).render
@@ -10,7 +29,11 @@ class BundleMarkdownRenderer
   end
 
   def render
-    ActionController::Base.helpers.sanitize(Commonmarker.to_html(normalized_body))
+    ActionController::Base.helpers.sanitize(
+      Commonmarker.to_html(normalized_body, options: GFM_OPTIONS),
+      tags: ALLOWED_TAGS,
+      attributes: ALLOWED_ATTRIBUTES
+    )
   end
 
   private

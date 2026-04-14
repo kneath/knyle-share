@@ -77,6 +77,60 @@ class BundleMarkdownRendererTest < ActiveSupport::TestCase
     assert_includes html, "Hello"
   end
 
+  test "renders GFM tables" do
+    markdown = <<~MD
+      | Name | Role |
+      |---|---|
+      | Alice | Lead |
+      | Bob | Eng |
+    MD
+
+    html = BundleMarkdownRenderer.render(markdown)
+
+    assert_includes html, "<table>"
+    assert_includes html, "<thead>"
+    assert_includes html, "<th>Name</th>"
+    assert_includes html, "<td>Alice</td>"
+  end
+
+  test "renders GFM strikethrough" do
+    html = BundleMarkdownRenderer.render("This is ~~wrong~~ text")
+
+    assert_includes html, "<del>wrong</del>"
+  end
+
+  test "renders GFM autolinks" do
+    html = BundleMarkdownRenderer.render("See https://example.com for info")
+
+    assert_includes html, 'href="https://example.com"'
+  end
+
+  test "renders GFM task lists" do
+    markdown = <<~MD
+      - [x] done
+      - [ ] todo
+    MD
+
+    html = BundleMarkdownRenderer.render(markdown)
+
+    assert_includes html, 'type="checkbox"'
+    assert_includes html, "checked"
+    assert_includes html, "disabled"
+  end
+
+  test "still strips scripts inside tables" do
+    markdown = <<~MD
+      | a | b |
+      |---|---|
+      | <script>alert(1)</script> | ok |
+    MD
+
+    html = BundleMarkdownRenderer.render(markdown)
+
+    assert_no_match "<script", html
+    assert_includes html, "<table>"
+  end
+
   test "scrubs invalid utf-8 sequences" do
     body = "# Valid \xFF\xFE invalid"
     html = BundleMarkdownRenderer.render(body)
