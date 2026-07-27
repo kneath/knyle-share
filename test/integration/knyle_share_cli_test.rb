@@ -10,11 +10,12 @@ require "uri"
 
 class KnyleShareCliTest < ActiveSupport::TestCase
   class FakeCliApiServer
-    attr_reader :uploads
+    attr_reader :requests, :uploads
 
     def initialize(expected_token:, existing_slug: nil)
       @expected_token = expected_token
       @existing_slug = existing_slug
+      @requests = []
       @uploads = {}
       @next_upload_id = 1
     end
@@ -62,6 +63,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       headers = read_headers(socket)
       body = read_body(socket, headers)
       path, query = full_path.split("?", 2)
+      requests << { method:, path:, query:, headers:, body: }
 
       route_request(socket, method:, path:, query:, headers:, body:)
     ensure
@@ -326,6 +328,143 @@ class KnyleShareCliTest < ActiveSupport::TestCase
     end
   end
 
+  test "public expiring links fail before any network request" do
+    with_fake_server do |server|
+      _stdout, stderr, status = run_cli(
+        "/path/that/does/not/exist",
+        "--public",
+        "--link-expiration", "1_week",
+        env: {
+          "KNYLE_SHARE_ADMIN_URL" => server.base_url,
+          "KNYLE_SHARE_API_TOKEN" => "test-token"
+        }
+      )
+
+      assert_equal 1, status.exitstatus
+      assert_match "Expiring links only apply to protected bundles", stderr
+      assert_empty server.requests
+    end
+  end
+
+  test "contradictory access flags fail in both orderings before any network request" do
+    with_fake_server do |server|
+      [
+        %w[--public --protected],
+        %w[--protected --public]
+      ].each do |access_flags|
+        _stdout, stderr, status = run_cli(
+          "/path/that/does/not/exist",
+          *access_flags,
+          env: {
+            "KNYLE_SHARE_ADMIN_URL" => server.base_url,
+            "KNYLE_SHARE_API_TOKEN" => "test-token"
+          }
+        )
+
+        assert_equal 1, status.exitstatus
+        assert_match "Use either --public or --protected, not both", stderr
+      end
+
+      assert_empty server.requests
+    end
+  end
+
+  test "top-level share and login help use the complete option parsers" do
+    share_flags = %w[--slug --public --protected --link-expiration --json]
+
+    stdout, stderr, status = run_cli("--help", env: {})
+
+    assert_predicate status, :success?
+    assert_equal "", stderr
+    assert_includes stdout, "login"
+    assert_includes stdout, "share"
+    share_flags.each { |flag| assert_includes stdout, flag }
+    assert_includes stdout, "Examples:"
+
+    stdout, stderr, status = run_cli("share", "--help", env: {})
+
+    assert_predicate status, :success?
+    assert_equal "", stderr
+    share_flags.each { |flag| assert_includes stdout, flag }
+
+    stdout, stderr, status = run_cli("login", "--help", env: {})
+
+    assert_predicate status, :success?
+    assert_equal "", stderr
+    assert_includes stdout, "--admin-url"
+    assert_includes stdout, "--token"
+  end
+
+  test "malformed configuration produces one clean error line" do
+    Dir.mktmpdir do |dir|
+      config_path = File.join(dir, "config.json")
+      File.write(config_path, "{not json")
+
+      stdout, stderr, status = run_cli(
+        "/path/that/does/not/exist",
+        "--public",
+        env: { "KNYLE_SHARE_CONFIG" => config_path }
+      )
+
+      assert_equal 1, status.exitstatus
+      assert_equal "", stdout
+      assert_equal 1, stderr.lines.length
+      assert_includes stderr, config_path
+      assert_includes stderr, "invalid JSON"
+      assert_includes stderr, "login"
+      refute_includes stderr, "backtrace"
+    end
+  end
+
+  test "dns failures produce one clean error line" do
+    Tempfile.create([ "knyle-share", ".txt" ]) do |file|
+      file.write("hello")
+      file.flush
+
+      stdout, stderr, status = run_cli(
+        file.path,
+        "--public",
+        "--admin-url", "http://knyle-share-test.invalid",
+        "--token", "test-token",
+        env: without_proxy
+      )
+
+      assert_equal 1, status.exitstatus
+      assert_equal "", stdout
+      assert_equal 1, stderr.lines.length
+      assert_includes stderr, "Could not resolve host knyle-share-test.invalid"
+      refute_match %r{\.rb:\d+}, stderr
+    end
+  end
+
+  test "option parse failures use json output when json appears later in argv" do
+    stdout, stderr, status = run_cli("--not-an-option", "--json", env: {})
+
+    assert_equal 1, status.exitstatus
+    assert_equal "", stderr
+    assert_match "invalid option", JSON.parse(stdout).fetch("error")
+  end
+
+  test "network failures use json output when requested" do
+    Tempfile.create([ "knyle-share", ".txt" ]) do |file|
+      file.write("hello")
+      file.flush
+
+      stdout, stderr, status = run_cli(
+        file.path,
+        "--public",
+        "--admin-url", "http://knyle-share-test.invalid",
+        "--token", "test-token",
+        "--json",
+        env: without_proxy
+      )
+
+      assert_equal 1, status.exitstatus
+      assert_equal "", stderr
+      assert_includes JSON.parse(stdout).fetch("error"), "Could not resolve host knyle-share-test.invalid"
+    end
+  end
+
   test "can run through a symlinked executable outside the repo" do
     Dir.mktmpdir("knyle-share-bin") do |dir|
       symlink_path = File.join(dir, "knyle-share")
@@ -362,5 +501,14 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       *args,
       chdir: Rails.root.to_s
     )
+  end
+
+  def without_proxy
+    {
+      "HTTP_PROXY" => nil,
+      "HTTPS_PROXY" => nil,
+      "http_proxy" => nil,
+      "https_proxy" => nil
+    }
   end
 end
