@@ -1,5 +1,5 @@
 class BundleUpload < ApplicationRecord
-  RESERVED_SLUGS = %w[api assets health rails up].freeze
+  RESERVED_SLUGS = Bundle::RESERVED_SLUGS
   SOURCE_KIND_VALUES = %w[directory file].freeze
   ACCESS_MODE_VALUES = %w[public protected].freeze
   STATUS_VALUES = %w[pending staged processing ready failed].freeze
@@ -8,7 +8,7 @@ class BundleUpload < ApplicationRecord
 
   validates :slug,
     presence: true,
-    format: { with: /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/ }
+    format: { with: Bundle::SLUG_FORMAT }
   validates :source_kind, inclusion: { in: SOURCE_KIND_VALUES }
   validates :access_mode, inclusion: { in: ACCESS_MODE_VALUES }
   validates :status, inclusion: { in: STATUS_VALUES }

@@ -40,9 +40,46 @@ class AdminApiTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     body = JSON.parse(response.body)
+    assert_equal true, body["valid"]
     assert_equal false, body["available"]
     assert_equal true, body["exists"]
     assert_equal true, body["replaceable"]
+  end
+
+  test "reports malformed, unused, and reserved slug availability" do
+    malformed_slugs = [
+      "Has Spaces",
+      "UPPER",
+      "-leading",
+      "trailing-",
+      "double--hyphen",
+      "emoji🎉"
+    ]
+
+    malformed_slugs.each do |slug|
+      get "/api/v1/bundles/availability", params: { slug: }, headers: @headers
+
+      assert_response :success
+      body = JSON.parse(response.body)
+      assert_equal false, body["valid"], slug
+      assert_equal false, body["available"], slug
+    end
+
+    get "/api/v1/bundles/availability", params: { slug: "unused-slug" }, headers: @headers
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal true, body["valid"]
+    assert_equal true, body["available"]
+    assert_equal false, body["reserved"]
+
+    get "/api/v1/bundles/availability", params: { slug: "api" }, headers: @headers
+
+    assert_response :success
+    body = JSON.parse(response.body)
+    assert_equal true, body["valid"]
+    assert_equal false, body["available"]
+    assert_equal true, body["reserved"]
   end
 
   test "creates an upload and returns ingest metadata" do
@@ -73,6 +110,31 @@ class AdminApiTest < ActionDispatch::IntegrationTest
     assert_match %r{\Auploads/}, body["ingest_key"]
     assert_match %r{\Ahttps://example.com/upload}, body["upload_url"]
     assert @api_token.reload.last_used_at.present?
+  end
+
+  test "returns json validation errors when creating uploads with malformed or reserved slugs" do
+    {
+      "Has Spaces" => "Slug is invalid",
+      "api" => "Slug is reserved"
+    }.each do |slug, error_message|
+      post "/api/v1/uploads",
+        params: {
+          upload: {
+            slug:,
+            source_kind: "file",
+            original_filename: "field-notes.md",
+            access_mode: "public",
+            replace_existing: false
+          }
+        },
+        headers: @headers
+
+      assert_response :unprocessable_entity
+      assert_equal "application/json", response.media_type
+      assert_includes JSON.parse(response.body).fetch("error"), error_message
+    end
+
+    assert_empty BundleUpload.all
   end
 
   test "finalizes and processes an upload into a bundle" do

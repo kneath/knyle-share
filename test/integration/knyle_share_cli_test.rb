@@ -12,9 +12,10 @@ class KnyleShareCliTest < ActiveSupport::TestCase
   class FakeCliApiServer
     attr_reader :requests, :uploads
 
-    def initialize(expected_token:, existing_slug: nil)
+    def initialize(expected_token:, existing_slug: nil, include_validity: true)
       @expected_token = expected_token
       @existing_slug = existing_slug
+      @include_validity = include_validity
       @requests = []
       @uploads = {}
       @next_upload_id = 1
@@ -38,7 +39,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
 
     private
 
-    attr_reader :expected_token, :existing_slug
+    attr_reader :expected_token, :existing_slug, :include_validity
 
     def port
       @server.addr[1]
@@ -102,14 +103,20 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       if method == "GET" && path == "/api/v1/bundles/availability"
         params = URI.decode_www_form(query.to_s).to_h
         slug = params["slug"]
+        valid = Bundle::SLUG_FORMAT.match?(slug.to_s)
+        reserved = Bundle::RESERVED_SLUGS.include?(slug)
+        exists = slug == existing_slug
 
-        write_json(socket, 200, {
+        payload = {
           slug:,
-          reserved: false,
-          available: slug != existing_slug,
-          exists: slug == existing_slug,
-          replaceable: slug == existing_slug
-        })
+          reserved:,
+          available: !reserved && !exists && (include_validity ? valid : slug.present?),
+          exists:,
+          replaceable: exists
+        }
+        payload[:valid] = valid if include_validity
+
+        write_json(socket, 200, payload)
       elsif method == "POST" && path == "/api/v1/uploads"
         upload = JSON.parse(body).fetch("upload")
         upload_id = @next_upload_id
@@ -328,6 +335,79 @@ class KnyleShareCliTest < ActiveSupport::TestCase
     end
   end
 
+  test "explicit malformed slugs show the allowed format before creating an upload" do
+    with_fake_server do |server|
+      Tempfile.create([ "knyle-share", ".txt" ]) do |file|
+        file.write("hello")
+        file.flush
+
+        stdout, stderr, status = run_cli(
+          file.path,
+          "--slug", "Has Spaces",
+          "--public",
+          env: {
+            "KNYLE_SHARE_ADMIN_URL" => server.base_url,
+            "KNYLE_SHARE_API_TOKEN" => "test-token"
+          }
+        )
+
+        assert_equal 1, status.exitstatus
+        assert_equal "", stdout
+        assert_includes stderr, "lowercase letters and digits"
+        assert_includes stderr, "single hyphens"
+        assert_includes stderr, "my-cool-site"
+        assert_empty server.uploads
+      end
+    end
+  end
+
+  test "malformed filename-derived slugs suggest passing slug" do
+    with_fake_server do |server|
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "🎉.md")
+        File.write(path, "hello")
+
+        _stdout, stderr, status = run_cli(
+          path,
+          "--public",
+          env: {
+            "KNYLE_SHARE_ADMIN_URL" => server.base_url,
+            "KNYLE_SHARE_API_TOKEN" => "test-token"
+          }
+        )
+
+        assert_equal 1, status.exitstatus
+        assert_includes stderr, "Pass --slug with a valid value"
+        assert_empty server.uploads
+      end
+    end
+  end
+
+  test "older servers without slug validity retain availability behavior" do
+    with_fake_server(include_validity: false) do |server|
+      Tempfile.create([ "older-server", ".txt" ]) do |file|
+        file.write("hello")
+        file.flush
+
+        _stdout, stderr, status = run_cli(
+          file.path,
+          "--slug", "Has Spaces",
+          "--public",
+          "--yes",
+          env: {
+            "KNYLE_SHARE_ADMIN_URL" => server.base_url,
+            "KNYLE_SHARE_API_TOKEN" => "test-token"
+          }
+        )
+
+        assert_predicate status, :success?
+        assert_equal "", stderr
+        assert_equal 1, server.uploads.size
+        assert_equal "Has Spaces", server.uploads.fetch(1).dig(:params, "slug")
+      end
+    end
+  end
+
   test "public expiring links fail before any network request" do
     with_fake_server do |server|
       _stdout, stderr, status = run_cli(
@@ -486,8 +566,8 @@ class KnyleShareCliTest < ActiveSupport::TestCase
 
   private
 
-  def with_fake_server(existing_slug: nil)
-    server = FakeCliApiServer.new(expected_token: "test-token", existing_slug:).start
+  def with_fake_server(existing_slug: nil, include_validity: true)
+    server = FakeCliApiServer.new(expected_token: "test-token", existing_slug:, include_validity:).start
     yield server
   ensure
     server&.stop

@@ -6,13 +6,15 @@ module Admin
 
         def availability
           slug = params[:slug].to_s
+          valid = Bundle::SLUG_FORMAT.match?(slug)
           reserved = Bundle::RESERVED_SLUGS.include?(slug)
           existing_bundle = Bundle.find_by(slug:)
 
           render json: {
             slug:,
+            valid:,
             reserved:,
-            available: slug.present? && !reserved && existing_bundle.blank?,
+            available: valid && !reserved && existing_bundle.blank?,
             exists: existing_bundle.present?,
             replaceable: existing_bundle.present?
           }

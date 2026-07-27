@@ -96,6 +96,7 @@ module KnyleShare
           bundle_slug, replace_existing = resolve_slug(
             client:,
             initial_slug: options[:slug] || default_slug_for(path),
+            slug_from_filename: options[:slug].nil?,
             replace_existing: options[:replace],
             interactive: interactive?(options)
           )
@@ -196,11 +197,17 @@ module KnyleShare
       end
     end
 
-    def resolve_slug(client:, initial_slug:, replace_existing:, interactive:)
+    def resolve_slug(client:, initial_slug:, slug_from_filename:, replace_existing:, interactive:)
       slug = initial_slug
 
       loop do
         availability = client.availability(slug:)
+
+        if availability["valid"] == false
+          message = "Bundle slug #{slug.inspect} is invalid. Slugs may contain only lowercase letters and digits, separated by single hyphens (for example, my-cool-site)."
+          message += " Pass --slug with a valid value." if slug_from_filename
+          raise Error, message
+        end
 
         return [ slug, replace_existing ] if availability["available"]
 
