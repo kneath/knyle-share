@@ -7,7 +7,34 @@ require "zlib"
 
 module KnyleShare
   class UploadSource
-    attr_reader :input_path, :upload_path, :source_kind, :original_filename, :content_type
+    EXCLUDED_DIRECTORY_NAMES = %w[
+      .git
+      .svn
+      .hg
+      node_modules
+      tmp
+      log
+      .bundle
+      .terraform
+      __pycache__
+      .aws
+      .ssh
+    ].freeze
+    EXCLUDED_FILE_NAMES = %w[
+      .DS_Store
+      .netrc
+      .npmrc
+      .knyle-shareignore
+    ].freeze
+    EXCLUDED_FILE_PATTERNS = %w[
+      .env
+      .env.*
+      *.pem
+      *.key
+    ].freeze
+    FNMATCH_FLAGS = File::FNM_PATHNAME | File::FNM_DOTMATCH
+
+    attr_reader :input_path, :upload_path, :source_kind, :original_filename, :content_type, :file_count, :relative_paths
 
     def self.prepare(input_path)
       new(input_path).prepare
@@ -45,7 +72,7 @@ module KnyleShare
     private
 
     attr_reader :tempfiles
-    attr_writer :upload_path, :source_kind, :original_filename, :content_type
+    attr_writer :upload_path, :source_kind, :original_filename, :content_type, :file_count, :relative_paths
 
     def prepare_file
       self.upload_path = input_path
@@ -67,12 +94,18 @@ module KnyleShare
       tarfile = Tempfile.new([ directory_name, ".tar" ])
       tarfile.binmode
 
-      file_count = 0
+      included_paths = []
+      ignore_patterns = load_ignore_patterns
 
       Gem::Package::TarWriter.new(tarfile) do |tar|
         Find.find(input_path) do |entry_path|
           relative_path = relative_entry_path(entry_path)
           next if relative_path.nil?
+
+          if excluded?(entry_path, relative_path, ignore_patterns)
+            Find.prune if File.directory?(entry_path)
+            next
+          end
 
           stat = File.lstat(entry_path)
           raise Error, "Symlinks are not supported in directory uploads." if stat.symlink?
@@ -84,11 +117,11 @@ module KnyleShare
             end
           end
 
-          file_count += 1
+          included_paths << relative_path
         end
       end
 
-      raise Error, "Directory #{input_path.inspect} does not contain any files." if file_count.zero?
+      raise Error, "Directory #{input_path.inspect} does not contain any files." if included_paths.empty?
 
       tarfile.rewind
       gzfile = Tempfile.new([ directory_name, ".tar.gz" ])
@@ -104,7 +137,46 @@ module KnyleShare
       gzfile.binmode
       gzfile.rewind
       tarfile.close!
+      self.relative_paths = included_paths.freeze
+      self.file_count = included_paths.length
       gzfile
+    end
+
+    def load_ignore_patterns
+      ignore_path = File.join(input_path, ".knyle-shareignore")
+      return [] unless File.file?(ignore_path)
+
+      # Patterns match archive-relative paths; basename globs and trailing-slash directory prefixes are also supported.
+      File.readlines(ignore_path, chomp: true).filter_map do |line|
+        pattern = line.strip
+        pattern unless pattern.empty? || pattern.start_with?("#")
+      end
+    end
+
+    def excluded?(entry_path, relative_path, ignore_patterns)
+      default_excluded?(relative_path) || ignore_patterns.any? do |pattern|
+        ignore_pattern_matches?(pattern, entry_path, relative_path)
+      end
+    end
+
+    def default_excluded?(relative_path)
+      path_parts = relative_path.split(File::SEPARATOR)
+      basename = path_parts.last
+
+      EXCLUDED_DIRECTORY_NAMES.include?(basename) ||
+        EXCLUDED_FILE_NAMES.include?(basename) ||
+        EXCLUDED_FILE_PATTERNS.any? { |pattern| File.fnmatch?(pattern, basename, FNMATCH_FLAGS) } ||
+        path_parts.each_cons(2).any? { |parent, child| parent == "vendor" && child == "bundle" }
+    end
+
+    def ignore_pattern_matches?(pattern, entry_path, relative_path)
+      if pattern.end_with?("/")
+        directory_prefix = pattern.delete_suffix("/")
+        return relative_path == directory_prefix || relative_path.start_with?("#{directory_prefix}/")
+      end
+
+      File.fnmatch?(pattern, relative_path, FNMATCH_FLAGS) ||
+        File.fnmatch?(pattern, File.basename(entry_path), FNMATCH_FLAGS)
     end
 
     def relative_entry_path(entry_path)

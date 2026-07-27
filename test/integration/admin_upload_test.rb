@@ -50,16 +50,21 @@ class AdminUploadTest < ActionDispatch::IntegrationTest
 
   test "create upload accepts file and stages it" do
     file = Rack::Test::UploadedFile.new(StringIO.new("# Test"), "text/markdown", true, original_filename: "test.md")
+    fake_store = Object.new
+    def fake_store.write(key:, body:, content_type:)
+    end
 
-    post admin_uploads_url(host: "admin.lvh.me"),
-      params: {
-        slug: "test-bundle",
-        source_kind: "file",
-        original_filename: "test.md",
-        access_mode: "public",
-        replace_existing: false,
-        file: file
-      }
+    BundleIngest::ObjectStore.stub :new, fake_store do
+      post admin_uploads_url(host: "admin.lvh.me"),
+        params: {
+          slug: "test-bundle",
+          source_kind: "file",
+          original_filename: "test.md",
+          access_mode: "public",
+          replace_existing: false,
+          file: file
+        }
+    end
 
     assert_response :created
     json = JSON.parse(response.body)

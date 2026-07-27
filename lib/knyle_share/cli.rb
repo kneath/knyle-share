@@ -19,7 +19,8 @@ module KnyleShare
     end
 
     def run(argv)
-      @json_errors = false
+      argv = argv.dup
+      @json_errors = argv.include?("--json")
       command = argv.first
 
       return run_login(argv.drop(1)) if command == "login"
@@ -44,13 +45,9 @@ module KnyleShare
 
     def run_login(argv)
       options = { admin_url: nil, api_token: nil }
+      parser = login_parser(options)
 
-      parser = OptionParser.new do |opts|
-        opts.banner = "Usage: knyle-share login [options]"
-        opts.on("--admin-url URL", "Admin base URL, for example https://admin.example.com") { |value| options[:admin_url] = value }
-        opts.on("--token TOKEN", "API token from the admin UI") { |value| options[:api_token] = value }
-      end
-
+      return print_parser(parser) if help_requested?(argv)
       parser.parse!(argv)
 
       admin_url = options[:admin_url] || prompt_for_value("Admin URL")
@@ -66,36 +63,10 @@ module KnyleShare
     end
 
     def run_share(argv)
-      options = {
-        slug: nil,
-        replace: false,
-        access_mode: nil,
-        password: nil,
-        generate_password: false,
-        confirm_upload: true,
-        json: false,
-        admin_url: nil,
-        api_token: nil,
-        link_expiration: nil
-      }
+      options = default_share_options
+      parser = share_parser(options)
 
-      parser = OptionParser.new do |opts|
-        opts.banner = "Usage: knyle-share <path> [options]"
-        opts.on("--slug SLUG", "Bundle slug") { |value| options[:slug] = value }
-        opts.on("--replace", "Replace an existing bundle without prompting") { options[:replace] = true }
-        opts.on("--public", "Publish as a public bundle") { options[:access_mode] = "public" }
-        opts.on("--protected", "Publish as a protected bundle") { options[:access_mode] = "protected" }
-        opts.on("--password PASSWORD", "Custom password for a protected bundle") { |value| options[:password] = value }
-        opts.on("--generate-password", "Generate a three-word password for a protected bundle") { options[:generate_password] = true }
-        opts.on("--link-expiration PRESET", LINK_PRESETS.keys, "Generate an expiring link: #{LINK_PRESETS.keys.join(', ')}") do |value|
-          options[:link_expiration] = value
-        end
-        opts.on("--yes", "Skip the final upload confirmation") { options[:confirm_upload] = false }
-        opts.on("--json", "Print machine-readable JSON output") { options[:json] = true }
-        opts.on("--admin-url URL", "Admin base URL override") { |value| options[:admin_url] = value }
-        opts.on("--token TOKEN", "API token override") { |value| options[:api_token] = value }
-      end
-
+      return print_parser(parser) if help_requested?(argv)
       parser.parse!(argv)
       @json_errors = options[:json]
       path = argv.shift
@@ -107,9 +78,17 @@ module KnyleShare
       configuration = config_store.load
       admin_url = options[:admin_url] || configuration[:admin_url]
       api_token = options[:api_token] || configuration[:api_token]
-      raise Error, "Missing CLI configuration. Run `bin/knyle-share login` or set KNYLE_SHARE_ADMIN_URL and KNYLE_SHARE_API_TOKEN." if blank?(admin_url) || blank?(api_token)
+      raise Error, "Missing CLI configuration. Run `knyle-share login` or set KNYLE_SHARE_ADMIN_URL and KNYLE_SHARE_API_TOKEN." if blank?(admin_url) || blank?(api_token)
 
       client = Client.new(admin_url:, api_token:)
+      input_path = File.expand_path(path)
+      raise Error, "Path #{input_path.inspect} does not exist." unless File.exist?(input_path)
+
+      access_mode = resolve_access_mode(options)
+      if options[:link_expiration] && access_mode != "protected"
+        raise Error, "Expiring links only apply to protected bundles."
+      end
+      password = resolve_password(options, access_mode:, interactive: interactive?(options))
       source = UploadSource.prepare(path)
 
       result =
@@ -117,11 +96,10 @@ module KnyleShare
           bundle_slug, replace_existing = resolve_slug(
             client:,
             initial_slug: options[:slug] || default_slug_for(path),
+            slug_from_filename: options[:slug].nil?,
             replace_existing: options[:replace],
             interactive: interactive?(options)
           )
-          access_mode = resolve_access_mode(options)
-          password = resolve_password(options, access_mode:, interactive: interactive?(options))
 
           confirm_share!(
             source:,
@@ -165,8 +143,6 @@ module KnyleShare
           response["password"] = password if password
 
           if options[:link_expiration]
-            raise Error, "Expiring links only apply to protected bundles." unless access_mode == "protected"
-
             link = client.create_link(slug: bundle_slug, expires_in: options[:link_expiration])
             response["signed_url"] = link.fetch("url")
             response["signed_url_expires_at"] = link.fetch("expires_at")
@@ -187,21 +163,51 @@ module KnyleShare
       result ? 0 : 1
     end
 
+    def default_share_options
+      {
+        slug: nil,
+        replace: false,
+        access_mode: nil,
+        access_mode_flags: [],
+        password: nil,
+        generate_password: false,
+        confirm_upload: true,
+        json: false,
+        admin_url: nil,
+        api_token: nil,
+        link_expiration: nil
+      }
+    end
+
     def validate_share_options!(options)
+      if options[:access_mode_flags].uniq.length > 1
+        raise Error, "Use either --public or --protected, not both."
+      end
+
       if options[:password] && options[:generate_password]
         raise Error, "Use either --password or --generate-password, not both."
       end
 
-      if options[:access_mode] == "public" && (options[:password] || options[:generate_password])
+      if options[:access_mode_flags].include?("public") && (options[:password] || options[:generate_password])
         raise Error, "Passwords only apply to protected bundles."
+      end
+
+      if options[:access_mode_flags].include?("public") && options[:link_expiration]
+        raise Error, "Expiring links only apply to protected bundles."
       end
     end
 
-    def resolve_slug(client:, initial_slug:, replace_existing:, interactive:)
+    def resolve_slug(client:, initial_slug:, slug_from_filename:, replace_existing:, interactive:)
       slug = initial_slug
 
       loop do
         availability = client.availability(slug:)
+
+        if availability["valid"] == false
+          message = "Bundle slug #{slug.inspect} is invalid. Slugs may contain only lowercase letters and digits, separated by single hyphens (for example, my-cool-site)."
+          message += " Pass --slug with a valid value." if slug_from_filename
+          raise Error, message
+        end
 
         return [ slug, replace_existing ] if availability["available"]
 
@@ -276,6 +282,14 @@ module KnyleShare
       say ""
       say "Ready to upload:"
       say "  Path: #{source.display_path}"
+      if source.source_kind == "directory"
+        say "  Files: #{source.file_count}"
+        displayed_paths = source.relative_paths.first(20)
+        displayed_paths.each { |path| say "    #{path}" }
+
+        remaining_count = source.file_count - displayed_paths.length
+        say "    … and #{remaining_count} more" if remaining_count.positive?
+      end
       say "  Slug: #{slug}"
       say "  Access: #{access_mode}"
       say "  Replace existing: #{replace_existing ? 'yes' : 'no'}"
@@ -406,11 +420,66 @@ module KnyleShare
       say "Expiring link: #{response['signed_url']}" if response["signed_url"]
     end
 
+    def login_parser(options)
+      OptionParser.new do |opts|
+        opts.banner = "Usage: knyle-share login [options]"
+        opts.on("--admin-url URL", "Admin base URL, for example https://admin.example.com") { |value| options[:admin_url] = value }
+        opts.on("--token TOKEN", "API token from the admin UI") { |value| options[:api_token] = value }
+      end
+    end
+
+    def share_parser(options)
+      OptionParser.new do |opts|
+        opts.banner = <<~BANNER.chomp
+          Usage: knyle-share share <path> [options]
+                 knyle-share <path> [options]
+        BANNER
+        opts.on("--slug SLUG", "Bundle slug") { |value| options[:slug] = value }
+        opts.on("--replace", "Replace an existing bundle without prompting") { options[:replace] = true }
+        opts.on("--public", "Publish as a public bundle") do
+          options[:access_mode] = "public"
+          options[:access_mode_flags] << "public"
+        end
+        opts.on("--protected", "Publish as a protected bundle") do
+          options[:access_mode] = "protected"
+          options[:access_mode_flags] << "protected"
+        end
+        opts.on("--password PASSWORD", "Custom password for a protected bundle") { |value| options[:password] = value }
+        opts.on("--generate-password", "Generate a three-word password for a protected bundle") { options[:generate_password] = true }
+        opts.on("--link-expiration PRESET", LINK_PRESETS.keys, "Generate an expiring link: #{LINK_PRESETS.keys.join(', ')}") do |value|
+          options[:link_expiration] = value
+        end
+        opts.on("--yes", "Skip the final upload confirmation") { options[:confirm_upload] = false }
+        opts.on("--json", "Print machine-readable JSON output") { options[:json] = true }
+        opts.on("--admin-url URL", "Admin base URL override") { |value| options[:admin_url] = value }
+        opts.on("--token TOKEN", "API token override") { |value| options[:api_token] = value }
+      end
+    end
+
+    def help_requested?(argv)
+      argv.any? { |argument| %w[-h --help].include?(argument) }
+    end
+
+    def print_parser(parser)
+      stdout.puts parser
+      0
+    end
+
     def print_usage
       stdout.puts <<~USAGE
         Usage:
-          knyle-share login
+          knyle-share login [options]
+          knyle-share share <path> [options]
           knyle-share <path> [options]
+
+        Commands:
+          login    Verify and save CLI configuration
+          share    Upload and publish a bundle
+
+        Share options:
+      USAGE
+      stdout.print share_parser(default_share_options).summarize.join
+      stdout.puts <<~USAGE
 
         Examples:
           knyle-share login

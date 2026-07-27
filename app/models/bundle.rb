@@ -1,5 +1,6 @@
 class Bundle < ApplicationRecord
   RESERVED_SLUGS = %w[api assets health rails up].freeze
+  SLUG_FORMAT = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/.freeze
   SOURCE_KIND_LABELS = {
     "directory" => "Directory",
     "file" => "File"
@@ -29,7 +30,7 @@ class Bundle < ApplicationRecord
   validates :slug,
     presence: true,
     uniqueness: true,
-    format: { with: /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/ }
+    format: { with: SLUG_FORMAT }
   validates :title, presence: true
   validates :source_kind, inclusion: { in: SOURCE_KIND_LABELS.keys }
   validates :presentation_kind, inclusion: { in: PRESENTATION_KIND_LABELS.keys }

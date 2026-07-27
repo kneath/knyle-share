@@ -10,7 +10,11 @@ module Admin
         def create
           bundle_upload = BundleUpload.new(upload_params)
           bundle_upload.ingest_key = generate_ingest_key(bundle_upload)
-          bundle_upload.save!
+          unless bundle_upload.save
+            return render json: {
+              error: bundle_upload.errors.full_messages.to_sentence
+            }, status: :unprocessable_entity
+          end
 
           render json: serialize_upload(bundle_upload).merge(
             upload_url: object_store.presign_put(

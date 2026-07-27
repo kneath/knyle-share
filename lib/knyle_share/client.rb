@@ -2,7 +2,7 @@ require "json"
 require "net/http"
 require "openssl"
 require "uri"
-require_relative "../../app/services/aws_client_options"
+require_relative "tls_defaults"
 
 module KnyleShare
   class Error < StandardError; end
@@ -76,6 +76,9 @@ module KnyleShare
 
     def put_file(upload_url:, file_path:, content_type:)
       uri = URI(upload_url)
+      unless %w[http https].include?(uri.scheme) && !uri.host.to_s.empty?
+        raise Error, "Direct upload URL must be an http or https URL with a host."
+      end
 
       File.open(file_path, "rb") do |file|
         request = Net::HTTP::Put.new(uri)
@@ -94,8 +97,8 @@ module KnyleShare
           status: response.code.to_i
         )
       end
-    rescue OpenSSL::SSL::SSLError => error
-      raise Error, "Direct upload failed during TLS negotiation: #{error.message}"
+    rescue URI::InvalidURIError
+      raise Error, "Direct upload URL must be an http or https URL with a host."
     end
 
     private
@@ -131,9 +134,26 @@ module KnyleShare
 
     def start_http(uri, &block)
       options = { use_ssl: uri.scheme == "https" }
-      options[:cert_store] = AwsClientOptions.ssl_ca_store if uri.scheme == "https" && AwsClientOptions.ssl_ca_store
+      if uri.scheme == "https"
+        cert_store = TlsDefaults.ssl_ca_store
+        options[:cert_store] = cert_store if cert_store
+      end
 
       Net::HTTP.start(uri.host, uri.port, **options, &block)
+    rescue Errno::ECONNREFUSED
+      raise Error, "Connection to #{uri.host} was refused."
+    rescue Errno::ECONNRESET
+      raise Error, "Connection to #{uri.host} was reset."
+    rescue Errno::EHOSTUNREACH, Errno::ENETUNREACH
+      raise Error, "Host #{uri.host} is unreachable."
+    rescue SocketError
+      raise Error, "Could not resolve host #{uri.host}."
+    rescue Net::OpenTimeout
+      raise Error, "Connection to #{uri.host} timed out."
+    rescue Net::ReadTimeout
+      raise Error, "Timed out while reading from #{uri.host}."
+    rescue OpenSSL::SSL::SSLError => error
+      raise Error, "TLS negotiation with #{uri.host} failed: #{error.message}"
     end
 
     def parse_json_response(response)
@@ -171,7 +191,14 @@ module KnyleShare
       url = value.to_s.strip
       raise Error, "Admin URL is required." if url.empty?
 
+      uri = URI.parse(url)
+      unless %w[http https].include?(uri.scheme) && !uri.host.to_s.empty?
+        raise Error, "Admin URL must be an http or https URL with a host."
+      end
+
       url.sub(%r{/+\z}, "")
+    rescue URI::InvalidURIError
+      raise Error, "Admin URL must be an http or https URL with a host."
     end
   end
 end

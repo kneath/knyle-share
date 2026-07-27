@@ -2,35 +2,77 @@
 
 require "fileutils"
 require "optparse"
+require "rbconfig"
+require "rubygems"
+require "tmpdir"
 
 options = {
-  bin_dir: "/usr/local/bin",
+  bin_dir: File.join(Dir.home, ".local", "bin"),
   executable_name: nil,
   dev: false,
-  force: false
+  force: false,
+  gem: false
 }
 
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: bin/install-cli [options]"
 
-  opts.on("--bin-dir DIR", "Directory to install into (default: /usr/local/bin)") do |value|
+  opts.on("--bin-dir DIR", "Symlink directory (default: ~/.local/bin)") do |value|
     options[:bin_dir] = value
   end
 
-  opts.on("--name NAME", "Executable name (overrides default)") do |value|
+  opts.on("--name NAME", "Symlink name (overrides default)") do |value|
     options[:executable_name] = value
   end
 
-  opts.on("--dev", "Install the dev CLI (dev-knyle-share) instead of the production CLI") do
+  opts.on("--dev", "Symlink the dev CLI (dev-knyle-share) instead of the production CLI") do
     options[:dev] = true
   end
 
-  opts.on("--force", "Replace an existing file or symlink at the destination") do
+  opts.on("--force", "Replace an existing symlink destination") do
     options[:force] = true
+  end
+
+  opts.on("--gem", "Build and install the CLI gem for the current Ruby") do
+    options[:gem] = true
   end
 end
 
 parser.parse!(ARGV)
+
+def warn_unless_on_path(directory)
+  path_entries = ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).map { |entry| File.expand_path(entry) }
+  warn "#{directory} is not currently on PATH." unless path_entries.include?(File.expand_path(directory))
+end
+
+if options[:gem]
+  if options[:dev]
+    warn "--gem cannot be combined with --dev; the development CLI is only available in symlink mode."
+    exit 1
+  end
+
+  repo_root = File.expand_path("..", __dir__)
+  gemspec = File.join(repo_root, "knyle-share.gemspec")
+  ruby = RbConfig.ruby
+
+  Dir.mktmpdir("knyle-share-gem") do |directory|
+    built_gem = File.join(directory, "knyle-share.gem")
+
+    unless system(ruby, "-S", "gem", "build", gemspec, "--output", built_gem, chdir: repo_root)
+      warn "Failed to build the knyle-share gem."
+      exit 1
+    end
+
+    unless system(ruby, "-S", "gem", "install", "--no-document", built_gem)
+      warn "Failed to install the knyle-share gem."
+      exit 1
+    end
+  end
+
+  puts "Installed knyle-share for #{RUBY_DESCRIPTION} at #{ruby}."
+  warn_unless_on_path(Gem.bindir)
+  exit 0
+end
 
 source_name = options[:dev] ? "dev-knyle-share" : "knyle-share"
 executable_name = options[:executable_name] || source_name
@@ -65,7 +107,4 @@ FileUtils.ln_s(source, destination)
 
 puts "Installed #{destination} -> #{source}"
 
-path_entries = ENV.fetch("PATH", "").split(File::PATH_SEPARATOR).map { |entry| File.expand_path(entry) }
-unless path_entries.include?(File.dirname(destination))
-  warn "#{File.dirname(destination)} is not currently on PATH."
-end
+warn_unless_on_path(File.dirname(destination))

@@ -1,8 +1,5 @@
 #!/usr/bin/env ruby
 
-require_relative "knyle-share-bootstrap"
-
-KnyleShareBootstrap.setup!(__FILE__)
 require "knyle_share"
 
 exit KnyleShare::Cli.new.run(ARGV)

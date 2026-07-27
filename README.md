@@ -264,21 +264,32 @@ If you lose the plaintext token, revoke it and create a new one. Only the digest
 
 ## CLI
 
-The repo includes a local CLI at `bin/knyle-share`
+The CLI requires Ruby 3.2 or newer.
 
-To install it into `/usr/local/bin` as a symlink back to this repo:
-
-```sh
-sudo bin/install-cli
-```
-
-That installs `/usr/local/bin/knyle-share` and keeps it pointed at your current checkout, so pulling new code updates the installed CLI too.
-
-You can also choose a different destination:
+The recommended install builds the CLI gem and installs it for your current Ruby:
 
 ```sh
-bin/install-cli --bin-dir "$HOME/.local/bin"
+bin/install-cli --gem
 ```
+
+Under a Ruby version manager, this does not require `sudo`. You can also run the
+RubyGems commands directly:
+
+```sh
+gem build knyle-share.gemspec
+gem install ./knyle-share-0.1.0.gem
+```
+
+For development, install a symlink back to the checkout:
+
+```sh
+bin/install-cli
+```
+
+That installs `~/.local/bin/knyle-share`, so pulling new code updates the
+symlinked CLI too. Choose a different destination with
+`bin/install-cli --bin-dir DIR`. Make sure the selected bin directory is on
+`PATH`.
 
 First, save your admin host and token:
 

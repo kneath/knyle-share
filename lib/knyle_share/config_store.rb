@@ -15,6 +15,8 @@ module KnyleShare
         admin_url: present(env["KNYLE_SHARE_ADMIN_URL"]) || persisted["admin_url"],
         api_token: present(env["KNYLE_SHARE_API_TOKEN"]) || persisted["api_token"]
       }
+    rescue JSON::ParserError
+      raise Error, "CLI configuration at #{path} contains invalid JSON. Re-run `knyle-share login`."
     end
 
     def save(admin_url:, api_token:)

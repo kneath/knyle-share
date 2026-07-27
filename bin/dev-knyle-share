@@ -1,10 +1,8 @@
 #!/usr/bin/env ruby
 
-script_path = File.realpath(__FILE__)
-repo_root = File.expand_path("..", File.dirname(script_path))
+require_relative "knyle-share-bootstrap"
 
-$LOAD_PATH.unshift(File.join(repo_root, "lib"))
-
+KnyleShareBootstrap.setup!(__FILE__)
 require "knyle_share"
 
 config_store = KnyleShare::ConfigStore.new(
@@ -12,4 +10,4 @@ config_store = KnyleShare::ConfigStore.new(
   default_config_name: "dev-config.json"
 )
 
-exit KnyleShare::Cli.new(config_store:).run(ARGV)
+exit KnyleShare::Cli.new(config_store: config_store).run(ARGV)

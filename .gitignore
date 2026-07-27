@@ -10,6 +10,7 @@
 # Ruby / Bundler
 /.bundle
 /vendor/bundle
+*.gem
 .byebug_history
 .irb_history
 
