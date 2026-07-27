@@ -276,6 +276,14 @@ module KnyleShare
       say ""
       say "Ready to upload:"
       say "  Path: #{source.display_path}"
+      if source.source_kind == "directory"
+        say "  Files: #{source.file_count}"
+        displayed_paths = source.relative_paths.first(20)
+        displayed_paths.each { |path| say "    #{path}" }
+
+        remaining_count = source.file_count - displayed_paths.length
+        say "    … and #{remaining_count} more" if remaining_count.positive?
+      end
       say "  Slug: #{slug}"
       say "  Access: #{access_mode}"
       say "  Replace existing: #{replace_existing ? 'yes' : 'no'}"
