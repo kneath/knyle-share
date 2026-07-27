@@ -5,6 +5,14 @@ require "optparse"
 require "rbconfig"
 require "rubygems"
 require "tmpdir"
+require_relative "knyle-share-bootstrap"
+
+if Gem::Version.new(RUBY_VERSION) < Gem::Version.new(KnyleShareBootstrap::REQUIRED_RUBY_VERSION)
+  warn "bin/install-cli requires Ruby #{KnyleShareBootstrap::REQUIRED_RUBY_VERSION} or newer, " \
+    "but found Ruby #{RUBY_VERSION}. Select a supported Ruby with your version manager and " \
+    "re-run, for example: mise exec -- bin/install-cli --gem"
+  exit 1
+end
 
 options = {
   bin_dir: File.join(Dir.home, ".local", "bin"),
@@ -33,7 +41,7 @@ parser = OptionParser.new do |opts|
     options[:force] = true
   end
 
-  opts.on("--gem", "Build and install the CLI gem for the current Ruby") do
+  opts.on("--gem", "Build and install the CLI gem for the current Ruby and add a wrapper to the bin directory") do
     options[:gem] = true
   end
 end
@@ -70,7 +78,28 @@ if options[:gem]
   end
 
   puts "Installed knyle-share for #{RUBY_DESCRIPTION} at #{ruby}."
-  warn_unless_on_path(Gem.bindir)
+
+  # The RubyGems binstub locates its Ruby relative to $0, so it must be invoked
+  # at its real path — a wrapper script keeps it working even when the gem bin
+  # directory (or the version manager that provides it) is not on PATH.
+  gem_executable = File.join(Gem.bindir, "knyle-share")
+  wrapper_path = File.join(File.expand_path(options[:bin_dir]), options[:executable_name] || "knyle-share")
+  wrapper_content = "#!/bin/sh\nexec \"#{gem_executable}\" \"$@\"\n"
+
+  if File.exist?(wrapper_path) && !File.symlink?(wrapper_path) && File.read(wrapper_path) == wrapper_content
+    puts "Wrapper already installed at #{wrapper_path}."
+  elsif (File.exist?(wrapper_path) || File.symlink?(wrapper_path)) && !options[:force]
+    warn "Refusing to overwrite existing #{wrapper_path}. Re-run with --force if you want to replace it."
+    exit 1
+  else
+    FileUtils.rm_f(wrapper_path)
+    FileUtils.mkdir_p(File.dirname(wrapper_path))
+    File.write(wrapper_path, wrapper_content)
+    File.chmod(0o755, wrapper_path)
+    puts "Installed #{wrapper_path} -> #{gem_executable}"
+  end
+
+  warn_unless_on_path(File.dirname(wrapper_path))
   exit 0
 end
 

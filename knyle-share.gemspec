@@ -19,5 +19,5 @@ Gem::Specification.new do |spec|
   spec.executables = ["knyle-share"]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "rack"
+  spec.add_dependency "rack", "~> 3.0"
 end

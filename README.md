@@ -272,7 +272,11 @@ The recommended install builds the CLI gem and installs it for your current Ruby
 bin/install-cli --gem
 ```
 
-Under a Ruby version manager, this does not require `sudo`. You can also run the
+Under a Ruby version manager, this does not require `sudo`. If your shell does
+not activate the version manager (so `ruby` still resolves to the macOS system
+Ruby), run it as `mise exec -- bin/install-cli --gem`. The installer also adds a
+`~/.local/bin/knyle-share` wrapper pinned to the installed gem, so the command
+works even when the version manager is not active. You can also run the
 RubyGems commands directly:
 
 ```sh
