@@ -575,8 +575,9 @@ class KnyleShareCliTest < ActiveSupport::TestCase
   test "repo launcher is valid ruby and rejects an unsupported ruby version" do
     launcher = Rails.root.join("bin/knyle-share").to_s
     bootstrap = Rails.root.join("bin/knyle-share-bootstrap.rb").to_s
+    installer = Rails.root.join("bin/install-cli").to_s
 
-    [launcher, bootstrap].each do |path|
+    [launcher, bootstrap, installer].each do |path|
       stdout, stderr, status = Open3.capture3(RbConfig.ruby, "-c", path)
 
       assert_predicate status, :success?, "#{path} failed syntax validation: #{stderr}"
@@ -620,6 +621,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       assert_equal Gem::Version.new("0.1.0"), specification.version
       assert_equal Gem::Requirement.new(">= 3.2"), specification.required_ruby_version
       assert_equal ["rack"], specification.runtime_dependencies.map(&:name)
+      assert_equal [Gem::Requirement.new("~> 3.0")], specification.runtime_dependencies.map(&:requirement)
     end
   end
 
