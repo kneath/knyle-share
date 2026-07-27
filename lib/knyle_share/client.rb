@@ -2,7 +2,7 @@ require "json"
 require "net/http"
 require "openssl"
 require "uri"
-require_relative "../../app/services/aws_client_options"
+require_relative "tls_defaults"
 
 module KnyleShare
   class Error < StandardError; end
@@ -134,7 +134,10 @@ module KnyleShare
 
     def start_http(uri, &block)
       options = { use_ssl: uri.scheme == "https" }
-      options[:cert_store] = AwsClientOptions.ssl_ca_store if uri.scheme == "https" && AwsClientOptions.ssl_ca_store
+      if uri.scheme == "https"
+        cert_store = TlsDefaults.ssl_ca_store
+        options[:cert_store] = cert_store if cert_store
+      end
 
       Net::HTTP.start(uri.host, uri.port, **options, &block)
     rescue Errno::ECONNREFUSED

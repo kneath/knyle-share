@@ -3,6 +3,7 @@ require "json"
 require "fileutils"
 require "open3"
 require "rbconfig"
+require "rubygems/package"
 require "socket"
 require "tempfile"
 require "tmpdir"
@@ -545,13 +546,20 @@ class KnyleShareCliTest < ActiveSupport::TestCase
     end
   end
 
-  test "can run through a symlinked executable outside the repo" do
+  test "installed repo launcher loads its bundle from outside the checkout" do
     Dir.mktmpdir("knyle-share-bin") do |dir|
       symlink_path = File.join(dir, "knyle-share")
       File.symlink(Rails.root.join("bin/knyle-share"), symlink_path)
 
+      scrubbed_env = {
+        "BUNDLE_GEMFILE" => nil,
+        "BUNDLE_BIN_PATH" => nil,
+        "RUBYOPT" => nil,
+        "RUBYLIB" => nil,
+        "PATH" => [File.dirname(RbConfig.ruby), ENV["PATH"]].compact.join(File::PATH_SEPARATOR)
+      }
       stdout, stderr, status = Open3.capture3(
-        RbConfig.ruby,
+        scrubbed_env,
         symlink_path,
         "--help",
         chdir: dir
@@ -561,6 +569,57 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       assert_equal "", stderr
       assert_includes stdout, "knyle-share login"
       assert_includes stdout, "knyle-share <path> [options]"
+    end
+  end
+
+  test "repo launcher is valid ruby and rejects an unsupported ruby version" do
+    launcher = Rails.root.join("bin/knyle-share").to_s
+    bootstrap = Rails.root.join("bin/knyle-share-bootstrap.rb").to_s
+
+    [launcher, bootstrap].each do |path|
+      stdout, stderr, status = Open3.capture3(RbConfig.ruby, "-c", path)
+
+      assert_predicate status, :success?, "#{path} failed syntax validation: #{stderr}"
+      assert_includes stdout, "Syntax OK"
+    end
+
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      "-r#{bootstrap}",
+      "-e",
+      'KnyleShareBootstrap.ensure_supported_ruby!("2.6.10")'
+    )
+
+    assert_equal 1, status.exitstatus
+    assert_equal "", stdout
+    assert_includes stderr, "found Ruby 2.6.10"
+    assert_includes stderr, "requires Ruby 3.2 or newer"
+    assert_includes stderr, "gem install knyle-share"
+    assert_includes stderr, "version manager"
+  end
+
+  test "gemspec builds a package with the ruby floor and rack dependency" do
+    Dir.mktmpdir("knyle-share-gem") do |dir|
+      built_gem = File.join(dir, "knyle-share.gem")
+      stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        "-S",
+        "gem",
+        "build",
+        "knyle-share.gemspec",
+        "--output",
+        built_gem,
+        chdir: Rails.root.to_s
+      )
+
+      assert_predicate status, :success?, "gem build failed:\n#{stdout}\n#{stderr}"
+      assert_path_exists built_gem
+
+      specification = Gem::Package.new(built_gem).spec
+      assert_equal "knyle-share", specification.name
+      assert_equal Gem::Version.new("0.1.0"), specification.version
+      assert_equal Gem::Requirement.new(">= 3.2"), specification.required_ruby_version
+      assert_equal ["rack"], specification.runtime_dependencies.map(&:name)
     end
   end
 

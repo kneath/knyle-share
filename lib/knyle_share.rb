@@ -1,3 +1,4 @@
+require_relative "knyle_share/version"
 require_relative "knyle_share/client"
 require_relative "knyle_share/clipboard"
 require_relative "knyle_share/cli"
