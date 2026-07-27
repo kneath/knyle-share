@@ -78,7 +78,7 @@ module KnyleShare
       configuration = config_store.load
       admin_url = options[:admin_url] || configuration[:admin_url]
       api_token = options[:api_token] || configuration[:api_token]
-      raise Error, "Missing CLI configuration. Run `bin/knyle-share login` or set KNYLE_SHARE_ADMIN_URL and KNYLE_SHARE_API_TOKEN." if blank?(admin_url) || blank?(api_token)
+      raise Error, "Missing CLI configuration. Run `knyle-share login` or set KNYLE_SHARE_ADMIN_URL and KNYLE_SHARE_API_TOKEN." if blank?(admin_url) || blank?(api_token)
 
       client = Client.new(admin_url:, api_token:)
       input_path = File.expand_path(path)

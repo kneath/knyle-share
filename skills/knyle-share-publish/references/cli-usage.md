@@ -25,6 +25,10 @@ The CLI stores its config in `~/.config/knyle-share/config.json` by default.
 - `--link-expiration 1_day|1_week|1_month`: generate an expiring link after upload
 - `--json`: print machine-readable JSON instead of interactive copy prompts
 
+## Directory Uploads
+
+Directory shares automatically exclude unsafe entries such as `.git`, `.env` files, `node_modules`, key/certificate files, and caches. Add a `.knyle-shareignore` file at the directory root to exclude more (one pattern per line: exact paths, globs like `*.log`, or directory prefixes like `generated/`). The CLI shows the file manifest before the upload confirmation.
+
 ## Examples
 
 Public folder:
