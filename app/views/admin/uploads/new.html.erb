@@ -1,84 +1,136 @@
-<% content_for :title, "New bundle · Knyle Share" %>
-
+<% content_for :title, "#{@replacement ? 'Replace files' : 'New bundle'} · Knyle Share" %>
 <div class="page">
   <%= render "admin/shared/header" %>
-
   <main>
     <div class="container">
-      <div class="page-title">
-        <h1>New bundle</h1>
+      <div class="breadcrumb">
+        <%= link_to "Bundles", admin_bundles_path %>
+        <% if @replacement %> / <%= link_to @replacement.title, admin_bundle_path(@replacement) %>
+        <% end %>
       </div>
-
-      <div class="card" data-controller="upload">
-        <div data-upload-target="error" class="upload-error" hidden></div>
-
-        <div data-upload-target="form">
-          <div data-upload-target="dropZone" class="drop-zone"
-               data-action="dragenter->upload#dragenter dragleave->upload#dragleave dragover->upload#dragover drop->upload#drop click->upload#browse">
+      <div class="page-title">
+        <h1>
+          <%= @replacement ? "Replace files" : "New bundle" %>
+        </h1>
+      </div>
+      <% if @replacement %>
+        <p class="notice-copy">The address and title stay the same. Publishing replaces all files and expires previous password sessions and expiring links.</p>
+      <% end %>
+      <div class="card" data-controller="upload" data-upload-host-value="<%= ENV.fetch('PUBLIC_HOST', 'share.lvh.me') %>" data-upload-replace-value="<%= @replacement.present? %>">
+        <p data-upload-target="error" class="upload-error" role="alert" tabindex="-1" hidden>
+        </p>
+        <form data-upload-target="form" data-action="submit->upload#upload">
+          <div data-upload-target="dropZone" class="drop-zone" data-action="dragenter->upload#dragenter dragleave->upload#dragleave dragover->upload#dragover drop->upload#drop">
             <input type="file" data-upload-target="fileInput" data-action="change->upload#fileChosen" hidden>
-            <div class="drop-zone-content">
-              <div class="drop-zone-icon">&#8693;</div>
-              <p>Drop a file here or <button type="button" class="link-button" data-action="upload#browse">browse</button></p>
-            </div>
+            <p>Drop one file here or <button type="button" class="link-button" data-action="upload#browse">browse</button>
+            </p>
+            <p class="field-note">Share a document, image, recording, or a folder packaged as .tar.gz.</p>
           </div>
-
           <div data-upload-target="fileSelected" class="file-selected" hidden>
-            <div class="file-selected-info">
-              <span data-upload-target="fileName"></span>
-              <span data-upload-target="fileSize" class="text-muted"></span>
+            <div>
+              <strong data-upload-target="fileName">
+              </strong>
+              <br>
+              <span data-upload-target="fileSize" class="text-muted">
+              </span>
             </div>
-            <button type="button" class="btn-small btn-ghost" data-action="upload#clearFile">Remove</button>
+            <button type="button" class="btn btn-ghost" data-action="upload#clearFile">Remove</button>
           </div>
-
           <div class="stack-form mt-3">
             <div class="field-group">
-              <label for="slug-input">Slug</label>
-              <input type="text" id="slug-input" data-upload-target="slug" class="text-input" placeholder="my-bundle" pattern="[a-z0-9]+(-[a-z0-9]+)*">
-              <p class="field-note">Lowercase letters, numbers, and hyphens. Auto-derived from filename if left blank.</p>
+              <label for="slug-input">Link address</label>
+              <input id="slug-input" class="text-input" data-upload-target="slug" data-action="input->upload#addressChanged" value="<%= @replacement&.slug %>" <%= 'readonly' if @replacement %> required maxlength="63" pattern="[a-z0-9]+(-[a-z0-9]+)*" autocomplete="off" spellcheck="false" aria-describedby="address-hint">
+              <p id="address-hint" class="field-note">1–63 lowercase letters, numbers, and single hyphens.</p>
+              <p class="field-note address-preview" data-upload-target="address">
+              </p>
             </div>
-
             <div class="field-group">
-              <label>Access</label>
-              <div class="pill-group" data-action="change->upload#accessModeChanged">
-                <label class="pill is-selected">
-                  <input type="radio" name="access_mode" value="protected" checked hidden>
-                  Protected
-                </label>
-                <label class="pill">
-                  <input type="radio" name="access_mode" value="public" hidden>
-                  Public
-                </label>
-              </div>
+              <label for="upload-format">Publish as</label>
+              <select id="upload-format" class="text-input" data-upload-target="format" data-action="change->upload#formatChanged">
+                <option value="file">Single file</option>
+                <option value="directory">Folder or website (.tar.gz / .tgz)</option>
+              </select>
+              <p class="field-note" data-upload-target="formatHint">Markdown, images, audio, video, and PDFs get a preview.</p>
+              <details class="field-note">
+                <summary>How to package a folder</summary>
+                <p>From inside the folder, run <code>tar -czf ../bundle.tar.gz .</code>, then select the archive. Keep index.html at the archive root for a website. Maximum: 10,000 files / 256 MB extracted.</p>
+              </details>
             </div>
-
-            <div class="field-group" data-upload-target="passwordGroup">
-              <label>Password</label>
-              <div class="pill-group mb-1" data-action="change->upload#passwordStrategyChanged">
-                <label class="pill is-selected">
-                  <input type="radio" name="password_strategy" value="generated" checked hidden>
-                  Generate
-                </label>
+            <fieldset class="field-group">
+              <legend>Who can open it?</legend>
+              <div class="pill-group" data-action="change->upload#accessModeChanged change->upload#passwordStrategyChanged">
                 <label class="pill">
-                  <input type="radio" name="password_strategy" value="custom" hidden>
-                  Custom
-                </label>
+                  <input type="radio" name="access_mode" value="protected" <%= 'checked' unless @replacement&.public_access? %>> Protected</label>
+                <label class="pill">
+                  <input type="radio" name="access_mode" value="public" <%= 'checked' if @replacement&.public_access? %>> Public</label>
               </div>
-              <input type="text" data-upload-target="passwordInput" class="text-input" placeholder="Custom password" hidden>
-            </div>
-
+              <p class="field-note">Protected requires a password or expiring link. Public lets anyone with the address view the files.</p>
+            </fieldset>
+            <fieldset class="field-group" data-upload-target="passwordGroup">
+              <legend>Password</legend>
+              <div class="pill-group" data-action="change->upload#passwordStrategyChanged">
+                <% if @replacement&.protected_access? %>
+                  <label class="pill">
+                    <input type="radio" name="password_strategy" value="keep" checked> Keep current password</label>
+                <% end %>
+                <label class="pill">
+                  <input type="radio" name="password_strategy" value="generated" <%= 'checked' unless @replacement&.protected_access? %>> Generate</label>
+                <label class="pill">
+                  <input type="radio" name="password_strategy" value="custom">Custom</label>
+              </div>
+              <input aria-label="Custom password" type="text" class="text-input" data-upload-target="passwordInput" autocomplete="new-password" hidden>
+              <p class="field-note">A generated password will be shown once when your bundle is ready.</p>
+            </fieldset>
             <div class="button-row">
-              <button type="button" class="btn btn-primary" data-upload-target="uploadButton" data-action="upload#upload" disabled>Upload</button>
-              <a href="<%= admin_bundles_path %>" class="btn btn-ghost">Cancel</a>
+              <button class="btn btn-primary" type="submit" data-upload-target="uploadButton" disabled>
+                <%= @replacement ? 'Replace files' : 'Upload' %>
+              </button>
+              <%= link_to "Cancel", @replacement ? admin_bundle_path(@replacement) : admin_bundles_path, class: "btn btn-ghost" %>
             </div>
           </div>
-        </div>
-
+        </form>
         <div data-upload-target="progress" class="upload-progress" hidden>
-          <div data-upload-target="status" class="upload-status">Preparing upload&hellip;</div>
-          <div class="progress-bar-track">
-            <div data-upload-target="progressBar" class="progress-bar-fill"></div>
+          <p data-upload-target="status" role="status" aria-live="polite">
+          </p>
+          <progress data-upload-target="progressBar" max="100" value="0" aria-label="Upload progress">
+          </progress>
+          <div class="button-row mt-2">
+            <button type="button" class="btn btn-primary" data-upload-target="retry" data-action="upload#retry" hidden>Retry preparation</button>
+            <button type="button" class="btn btn-secondary" data-action="upload#cancel">Cancel upload</button>
           </div>
         </div>
+        <section data-upload-target="success" tabindex="-1" hidden>
+          <h2>Ready to share</h2>
+          <p class="text-muted mt-1">Your files are published. Copy the details below to share them.</p>
+          <div class="field-group mt-2" data-controller="clipboard">
+            <label for="ready-url">Share address</label>
+            <input id="ready-url" class="text-input mono" readonly data-upload-target="shareUrl" data-clipboard-target="source">
+            <button type="button" class="btn btn-primary" data-action="clipboard#copy">Copy link</button>
+            <span role="status" data-clipboard-target="status">
+            </span>
+          </div>
+          <div class="generated-secret" data-upload-target="secretGroup" data-controller="clipboard" hidden>
+            <label for="ready-password">Password — save it now</label>
+            <input id="ready-password" class="text-input mono" readonly data-upload-target="secret" data-clipboard-target="source">
+            <button type="button" class="btn btn-secondary mt-1" data-action="clipboard#copy">Copy password</button>
+            <span role="status" data-clipboard-target="status">
+            </span>
+            <p class="field-note">This password is only available on this page. Refreshing or leaving clears it.</p>
+          </div>
+          <div class="field-group mt-2" data-controller="clipboard">
+            <label for="ready-details">Sharing details</label>
+            <textarea id="ready-details" class="text-input" readonly rows="3" data-upload-target="sharingDetails" data-clipboard-target="source">
+            </textarea>
+            <button type="button" class="btn btn-secondary" data-action="clipboard#copy">Copy sharing details</button>
+            <span role="status" data-clipboard-target="status">
+            </span>
+          </div>
+          <div class="button-row mt-2">
+            <a class="btn btn-primary" data-upload-target="details">Manage bundle</a>
+            <a class="btn btn-secondary" data-upload-target="preview" target="_blank" rel="noreferrer">Open preview</a>
+          </div>
+          <p class="field-note mt-1">For protected bundles, recipients also need the password or an expiring link from Manage bundle. If you returned after refreshing, use Manage bundle to reset a password you did not save.</p>
+        </section>
       </div>
     </div>
   </main>

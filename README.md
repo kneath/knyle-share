@@ -334,3 +334,28 @@ curl \
   -H "Authorization: Bearer YOUR_TOKEN" \
   "https://ADMIN_HOST/api/v1/bundles/availability?slug=example-bundle"
 ```
+
+## Browser sharing and recovery
+
+Choose **New bundle** to share a file, or select a `.tar.gz` / `.tgz` archive to
+publish a folder or website. Put `index.html` at the archive root for a website;
+other archives become browsable file collections. Use **Replace files** on a
+bundle to keep its address while updating its contents.
+
+Protected uploads finish with a **Ready to share** screen containing the link
+and a strong generated password. Save the password before leaving or refreshing;
+only its digest is stored. Expiring links provide temporary password-free access.
+Changing a password, replacing files, changing visibility, or revoking access
+invalidates previous links and sessions.
+
+The CLI displays byte progress in interactive terminals and can resume
+publication after an interrupted processing request:
+
+```sh
+knyle-share resume UPLOAD_ID
+```
+
+Use the upload ID printed in the error message. `--json` remains machine-readable.
+If publication succeeded but expiring-link creation failed, the successful share
+URL is returned with a warning. See the deployment guide for the publishing
+worker, durable storage cleanup, and direct-upload CORS configuration.

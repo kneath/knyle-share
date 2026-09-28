@@ -1,0 +1,13 @@
+<div class="copy-field" data-controller="clipboard">
+  <label for="<%= id %>">
+    <%= label %>
+  </label>
+  <div class="copy-field-controls">
+    <input id="<%= id %>" class="text-input mono" readonly value="<%= value %>" data-clipboard-target="source">
+    <button class="btn btn-secondary" type="button" data-action="clipboard#copy">
+      <%= button %>
+    </button>
+  </div>
+  <span class="field-note" role="status" data-clipboard-target="status">
+  </span>
+</div>

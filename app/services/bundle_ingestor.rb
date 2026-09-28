@@ -10,49 +10,59 @@ class BundleIngestor
   end
 
   def call
-    copied_keys = []
-    staged_entries = []
-    old_keys = []
-    result = nil
-
-    bundle_upload.mark_processing! unless bundle_upload.processing?
-
-    ActiveRecord::Base.transaction do
-      staged_entries = staged_object_lister.call
-      classification = classify(staged_entries)
-      existing_bundle = Bundle.lock.find_by(slug: bundle_upload.slug)
-
-      validate_replacement!(existing_bundle)
-
-      bundle = prepare_bundle!(
-        existing_bundle:,
-        classification:,
-        staged_entries:
-      )
-
-      copied_assets = copy_and_build_assets!(bundle:, classification:, staged_entries:, copied_keys:)
-      old_keys = existing_bundle.present? ? existing_bundle.assets.pluck(:storage_key) : []
-
-      bundle.assets.destroy_all
-      copied_assets.each(&:save!)
-
-      bundle_upload.mark_ready!
-
-      result = Result.new(
-        bundle:,
-        bundle_upload:,
-        classification:,
-        replacing_existing: existing_bundle.present?
-      )
+    if bundle_upload.reload.ready?
+      bundle = Bundle.find_by(id: bundle_upload.published_bundle_id)
+      raise Error, "This upload was published, but its bundle has since been deleted." unless bundle
+      return Result.new(bundle:, bundle_upload:, classification: nil, replacing_existing: bundle_upload.replace_existing?)
     end
 
-    cleanup_keys(staged_entries.map(&:source_key))
-    cleanup_keys(old_keys)
+    token = SecureRandom.uuid
+    prefix = "bundles/uploads/#{bundle_upload.id}/#{token}"
+    claimed = BundleUpload.where(id: bundle_upload.id, status: %w[pending staged queued failed])
+      .update_all(status: "processing", processing_token: token, processing_started_at: Time.current, publish_prefix: prefix, error_message: nil)
+    raise Error, "This upload is already being processed or was canceled." unless claimed == 1
+    bundle_upload.reload
+    copied_keys = []
+    committed = false
+    cleanup = nil
 
-    result
+    # Network IO and Markdown rendering happen before acquiring a write lock.
+    existing = Bundle.find_by(slug: bundle_upload.slug)
+    validate_replacement!(existing)
+    expected_revision = existing&.content_revision
+    expected_access_revision = existing&.access_revision
+    staged_entries = staged_object_lister.call
+    classification = classify(staged_entries)
+    copied_assets = copy_and_build_assets!(classification:, staged_entries:, copied_keys:)
+    archive_key, archive_size = prepare_archive(staged_entries, copied_keys) if classification.source_kind == "directory"
+
+    ActiveRecord::Base.transaction do
+      current_upload = BundleUpload.find(bundle_upload.id)
+      raise Error, "This upload was canceled or restarted." unless current_upload.processing_token == token && current_upload.processing?
+      current = Bundle.find_by(slug: bundle_upload.slug)
+      validate_replacement!(current)
+      if current&.id != existing&.id || current&.content_revision != expected_revision || current&.access_revision != expected_access_revision
+        raise Error, "This bundle changed while files were being prepared. Review it and retry."
+      end
+      old_keys = current ? current.assets.pluck(:storage_key) + [current.archive_storage_key] : []
+      bundle = prepare_bundle!(existing_bundle: current, classification:, staged_entries:)
+      bundle.update!(archive_storage_key: archive_key, archive_byte_size: archive_size)
+      bundle.assets.destroy_all
+      copied_assets.each { |asset| asset.bundle = bundle; asset.save! }
+      bundle_upload.update!(status: "ready", published_bundle_id: bundle.id, error_message: nil)
+      cleanup = StorageCleanup.schedule!(old_keys + staged_entries.map(&:source_key) + [bundle_upload.ingest_key], label: "Published #{bundle.slug}")
+      @result = Result.new(bundle:, bundle_upload:, classification:, replacing_existing: existing.present?)
+    end
+    committed = true
+    # The durable record survives a process exit; try immediately when possible.
+    cleanup&.perform!(store: object_store)
+    @result
   rescue StandardError => error
-    cleanup_keys(copied_keys)
-    bundle_upload.mark_failed!(error.message) if bundle_upload.persisted?
+    unless committed
+      cleanup_keys(copied_keys || [])
+      BundleUpload.where(id: bundle_upload.id, processing_token: token, status: "processing")
+        .update_all(status: "failed", error_message: error.message) if token
+    end
     raise Error, error.message
   end
 
@@ -75,6 +85,11 @@ class BundleIngestor
   end
 
   def validate_replacement!(existing_bundle)
+    if existing_bundle && bundle_upload.replace_existing? &&
+        ((bundle_upload.expected_content_revision && bundle_upload.expected_content_revision != existing_bundle.content_revision) ||
+         (bundle_upload.expected_access_revision && bundle_upload.expected_access_revision != existing_bundle.access_revision))
+      raise Error, "This bundle changed after the upload began. Start a new replacement to preserve its current settings."
+    end
     if existing_bundle.present? && !bundle_upload.replace_existing?
       raise Error, "Bundle slug #{bundle_upload.slug.inspect} already exists."
     end
@@ -119,19 +134,14 @@ class BundleIngestor
     end
   end
 
-  def copy_and_build_assets!(bundle:, classification:, staged_entries:, copied_keys:)
+  def copy_and_build_assets!(classification:, staged_entries:, copied_keys:)
     staged_entries.map do |entry|
-      storage_key = BundleIngest::PublishedStorageKey.call(
-        bundle_id: bundle.id,
-        content_revision: bundle.content_revision,
-        path: entry.path
-      )
+      storage_key = "#{bundle_upload.publish_prefix}/#{entry.path}"
 
-      transfer_entry(entry:, destination_key: storage_key)
       copied_keys << storage_key
+      transfer_entry(entry:, destination_key: storage_key)
 
       BundleAsset.new(
-        bundle:,
         path: entry.path,
         storage_key:,
         content_type: entry.content_type,
@@ -154,10 +164,38 @@ class BundleIngestor
   end
 
   def cleanup_keys(keys)
-    Array(keys).each do |key|
-      object_store.delete(key:)
-    rescue StandardError => error
-      Rails.logger.warn("BundleIngestor cleanup failed for #{key}: #{error.message}")
+    return if keys.empty?
+    cleanup = StorageCleanup.schedule!(keys, label: "Unpublished files for #{bundle_upload.slug}")
+    cleanup&.perform!(store: object_store)
+  end
+
+  def prepare_archive(entries, copied_keys)
+    require "rubygems/package"
+    require "zlib"
+    require "tempfile"
+    # Use disk for the assembled archive instead of keeping another full copy
+    # of the bundle in memory on small self-hosted instances.
+    Tempfile.create(["knyle-bundle", ".tar"]) do |tar_io|
+      tar_io.binmode
+      Gem::Package::TarWriter.new(tar_io) do |tar|
+        entries.each do |entry|
+          body = entry.body || object_store.read(key: entry.source_key)
+          tar.add_file_simple(entry.path, 0o644, body.bytesize) { |io| io.write(body) }
+        end
+      end
+      tar_io.rewind
+      Tempfile.create(["knyle-bundle", ".tar.gz"]) do |compressed|
+        compressed.binmode
+        gzip = Zlib::GzipWriter.new(compressed)
+        IO.copy_stream(tar_io, gzip)
+        gzip.finish
+        compressed.flush
+        compressed.rewind
+        key = "#{bundle_upload.publish_prefix}-archive.tar.gz"
+        copied_keys << key
+        object_store.write(key:, body: compressed, content_type: "application/gzip")
+        return [key, compressed.size]
+      end
     end
   end
 

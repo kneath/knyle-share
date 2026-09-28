@@ -24,8 +24,8 @@
     </p>
 
     <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-      <%= form_with url: admin_validate_setup_path, method: :post do %>
-        <button class="btn btn-secondary btn-full" type="submit">Re-run checks</button>
+      <%= form_with url: admin_validate_setup_path, method: :post, data: { controller: "submit", action: "submit->submit#start" } do %>
+        <button class="btn btn-secondary btn-full" type="submit" data-submit-target="button"><%= @validation_result.pending? ? "Run checks" : "Re-run checks" %></button><span role="status" data-submit-target="status"></span>
       <% end %>
 
       <% if @validation_result.passed? %>
@@ -35,6 +35,7 @@
       <% end %>
     </div>
 
+    <p class="field-note"><a href="https://github.com/kneath/knyle-share#local-setup" target="_blank" rel="noreferrer">Configuration and troubleshooting instructions</a></p>
     <p class="text-muted" style="margin-top: 1.5rem; font-size: 0.8rem; text-align: center;">
       The first GitHub login after all checks pass will become the admin.
     </p>

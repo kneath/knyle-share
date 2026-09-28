@@ -8,6 +8,13 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
+    <% if @bundle&.public_access? && @bundle.active? %>
+      <meta property="og:title" content="<%= @bundle.title %>">
+      <meta property="og:description" content="<%= @bundle.description.presence || 'Shared with Knyle Share' %>">
+      <meta property="og:type" content="website">
+      <meta property="og:url" content="<%= public_bundle_url_for(@bundle) %>">
+      <meta name="description" content="<%= @bundle.description.presence || 'Shared with Knyle Share' %>">
+    <% else %><meta name="robots" content="noindex"><% end %>
     <%= yield :head %>
 
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>

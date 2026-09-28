@@ -10,6 +10,10 @@ module Admin
         def create
           bundle_upload = BundleUpload.new(upload_params)
           bundle_upload.ingest_key = generate_ingest_key(bundle_upload)
+          if bundle_upload.replace_existing? && (existing = Bundle.find_by(slug: bundle_upload.slug))
+            bundle_upload.expected_content_revision = existing.content_revision
+            bundle_upload.expected_access_revision = existing.access_revision
+          end
           unless bundle_upload.save
             return render json: {
               error: bundle_upload.errors.full_messages.to_sentence
@@ -25,6 +29,10 @@ module Admin
         end
 
         def update
+          return render json: serialize_upload(@bundle_upload) if @bundle_upload.ready? || @bundle_upload.staged?
+          unless @bundle_upload.pending?
+            return render json: { error: "This upload cannot be finalized in its current state." }, status: :conflict
+          end
           @bundle_upload.update!(upload_finalize_params)
           @bundle_upload.mark_staged! unless @bundle_upload.staged?
 

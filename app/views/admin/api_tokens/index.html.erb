@@ -15,7 +15,7 @@
       <% if @issued_token.present? %>
         <div class="generated-secret">
           <div class="detail-label">New token</div>
-          <code><%= @issued_token %></code>
+          <%= render "shared/copy_field", id: "issued-token", label: "API token", value: @issued_token, button: "Copy token" %>
           <p class="field-note mt-1">Store this now. Only the token digest is kept after this page load.</p>
         </div>
       <% end %>
@@ -46,6 +46,7 @@
         <% end %>
       </div>
 
+      <section class="detail-section"><h2>Connect the CLI</h2><p class="text-muted mt-1">After installing the CLI, run <code>knyle-share login --admin-url <%= request.base_url %></code>. Paste your token at the hidden prompt.</p><p class="field-note mt-1">Then share a file with <code>knyle-share ./notes.md --protected --generate-password</code>. Keep tokens out of command arguments and shell history.</p><%= link_to "CLI installation instructions", "https://github.com/kneath/knyle-share#cli", target: "_blank", rel: "noreferrer" %></section>
       <div class="detail-section">
         <h2>Issued Tokens</h2>
 
@@ -75,8 +76,8 @@
                 </div>
 
                 <% if api_token.active? %>
-                  <%= form_with url: admin_revoke_api_token_path(api_token), method: :patch, class: "inline-form" do %>
-                    <button class="btn btn-secondary" type="submit" data-turbo-confirm="Revoke this API token?">Revoke</button>
+                  <%= form_with url: admin_revoke_api_token_path(api_token), method: :patch, class: "inline-form", data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Revoke #{api_token.label}? Its CLI and integrations will stop working." } do %>
+                    <button class="btn btn-secondary" type="submit">Revoke</button>
                   <% end %>
                 <% end %>
               </li>

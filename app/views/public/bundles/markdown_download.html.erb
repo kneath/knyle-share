@@ -12,7 +12,7 @@
 
     <div class="home-actions">
       <a class="btn btn-secondary" href="<%= public_bundle_raw_url_for(@bundle, access_token: params[:access]) %>">View raw markdown</a>
-      <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">Download file</a>
+      <a class="btn btn-primary" href="<%= asset_download_url %>">Download file</a>
     </div>
   </div>
 </div>

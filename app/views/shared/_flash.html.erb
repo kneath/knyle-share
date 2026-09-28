@@ -1,6 +1,6 @@
-<% flash.each do |type, message| %>
+<% flash.to_hash.slice("notice", "alert").each do |type, message| %>
   <div class="flash-stack">
-    <div class="flash <%= type == "alert" ? "flash-alert" : "flash-notice" %>">
+    <div role="<%= type == "alert" ? "alert" : "status" %>" class="flash <%= type == "alert" ? "flash-alert" : "flash-notice" %>">
       <div class="container">
         <%= message %>
       </div>

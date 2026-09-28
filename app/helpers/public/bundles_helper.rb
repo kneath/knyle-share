@@ -1,5 +1,19 @@
 module Public
   module BundlesHelper
+    def viewer_endpoint(action, asset = @entry_asset)
+      query = { path: asset.path }
+      query[:access] = params[:access] if params[:access].present?
+      "/_share/#{action}?#{query.to_query}"
+    end
+
+    def asset_download_url(bundle = @bundle, asset = @entry_asset)
+      if bundle.presentation_kind == "file_listing"
+        public_bundle_asset_url_for(bundle, asset_path: asset.path, access_token: params[:access])
+      else
+        public_bundle_download_url_for(bundle, access_token: params[:access])
+      end
+    end
+
     def public_bundle_size_label(bytes)
       number_to_human_size(bytes)
     end

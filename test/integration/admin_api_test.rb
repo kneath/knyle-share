@@ -233,6 +233,7 @@ class AdminApiTest < ActionDispatch::IntegrationTest
       end
 
       def write(key:, body:, content_type:)
+        body = body.read if body.respond_to?(:read)
         objects[key] = {
           body: body.dup,
           content_type:,

@@ -1,22 +1,18 @@
 <% content_for :title, "#{@bundle.title} · Knyle Share" %>
-
-<div class="video-display">
-  <div class="video-display-viewport">
-    <video controls preload="metadata" src="<%= @video_url %>" type="<%= @entry_asset.content_type %>">
-      Your browser does not support video playback.
-    </video>
-  </div>
-
+<div class="video-display" data-controller="media" data-media-source-value="<%= viewer_endpoint('media') %>">
+  <main class="video-display-viewport">
+    <video controls playsinline preload="metadata" src="<%= @video_url %>" data-media-target="media" data-action="error->media#failed waiting->media#waiting canplay->media#ready" aria-label="<%= @bundle.title %>">Your browser cannot play this video. Download it to watch in another player.</video>
+  </main>
   <footer class="video-display-actions">
     <div>
-      <h1><%= @bundle.title %></h1>
+      <h1>
+        <%= @bundle.title %>
+      </h1>
       <p class="text-muted">
         <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
       </p>
+      <%= render 'public/bundles/media_feedback' %>
     </div>
-
-    <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
-      Download file
-    </a>
+    <%= link_to "Download file", asset_download_url, class: "btn btn-primary" %>
   </footer>
 </div>

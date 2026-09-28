@@ -1,0 +1,10 @@
+<% content_for :title, "File unavailable · Knyle Share" %>
+<div class="page-centered">
+  <main class="centered-card wide">
+    <h1>This file is unavailable</h1>
+    <p class="text-muted mt-1">The link may be incomplete, or the sender may have removed or replaced the file. Ask them for a current link.</p>
+    <% if @bundle %>
+      <%= link_to "Back to bundle", public_bundle_url_for(@bundle), class: "btn btn-secondary mt-2" %>
+    <% end %>
+  </main>
+</div>

@@ -46,7 +46,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_includes bundle.assets.first.rendered_html, "Hello"
     assert_equal BundleMarkdownRenderer::VERSION, bundle.assets.first.rendered_html_version
     assert_equal ["uploads/u1/field-notes.md"], store.deleted_keys
-    assert store.objects.key?("bundles/#{bundle.id}/1/field-notes.md")
+    assert store.objects.key?(bundle.assets.find_by!(path: "field-notes.md").storage_key)
   end
 
   test "publishes a directory upload as a static site" do
@@ -113,8 +113,8 @@ class BundleIngestorTest < ActiveSupport::TestCase
 
     assert_equal "static_site", bundle.presentation_kind
     assert_equal %w[assets/app.css index.html], bundle.assets.order(:path).pluck(:path)
-    assert store.objects.key?("bundles/#{bundle.id}/1/index.html")
-    assert store.objects.key?("bundles/#{bundle.id}/1/assets/app.css")
+    assert store.objects.key?(bundle.assets.find_by!(path: "index.html").storage_key)
+    assert store.objects.key?(bundle.assets.find_by!(path: "assets/app.css").storage_key)
   end
 
   test "replacement preserves analytics while revoking prior access grants" do
@@ -193,7 +193,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_equal ["private-brief-v2.pdf"], replaced_bundle.assets.pluck(:path)
     assert_includes store.deleted_keys, "uploads/u3/private-brief-v2.pdf"
     assert_includes store.deleted_keys, "bundles/#{bundle.id}/1/private-brief.pdf"
-    assert store.objects.key?("bundles/#{bundle.id}/2/private-brief-v2.pdf")
+    assert store.objects.key?(bundle.assets.find_by!(path: "private-brief-v2.pdf").storage_key)
   end
 
   test "fails when a slug already exists without replacement enabled" do
@@ -271,6 +271,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
       end
 
       def write(key:, body:, content_type:)
+        body = body.read if body.respond_to?(:read)
         objects[key] = {
           body: body.dup,
           content_type:,

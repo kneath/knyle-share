@@ -671,3 +671,63 @@ button,
     align-items: flex-start;
   }
 }
+
+/* Shared interaction primitives. These also serve protected/public viewers. */
+[hidden] { display: none !important; }
+:root { color-scheme: light dark; }
+:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+button, .btn { min-height: 44px; transition: background-color 120ms ease, border-color 120ms ease; }
+input, select, textarea { font-size: 16px; }
+fieldset { border: 0; min-width: 0; }
+legend { font-weight: 600; margin-bottom: .5rem; }
+.stack-form, .field-group { display: grid; gap: .6rem; }
+.stack-form { gap: 1rem; }
+.text-input { width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: .75rem .9rem; }
+textarea.text-input { resize: vertical; }
+.field-note { font-size: .85rem; color: var(--color-muted); overflow-wrap: anywhere; }
+.field-error { color: var(--color-danger); }
+.button-row { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.link-button { display: inline; min-height: 44px; padding: .4rem 0; background: transparent; color: var(--color-accent); text-decoration: underline; text-align: left; justify-self: start; }
+.mt-1 { margin-top: .5rem; } .mt-2 { margin-top: 1rem; } .mb-2 { margin-bottom: 1rem; }
+h1, .bundle-name, .bundle-slug, .bundle-url, .breadcrumb, .file-selected, .detail-value { overflow-wrap: anywhere; min-width: 0; }
+.bundle-item > div { min-width: 0; }
+.bundle-item:hover .bundle-name { color: var(--color-accent); }
+.btn-ghost { color: var(--color-text); background: transparent; border-color: var(--color-border); }
+.badge-active { color: #15803d; }
+.copy-field { display: grid; gap: .5rem; margin-top: 1rem; }
+.copy-field label { font-weight: 500; }
+.copy-field-controls { display: flex; gap: .5rem; }
+.copy-field-controls .btn { flex-shrink: 0; }
+.copy-field .mono { font-size: .85rem; }
+.pagination { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: center; margin: 1.5rem 0; }
+.audio-display audio { display: block; width: 100%; margin: 1.5rem 0; }
+.audio-display select { max-width: 9rem; }
+.image-display, .video-display, .pdf-display { height: 100dvh; min-height: 420px; }
+.image-display-viewport.is-actual-size { display: block; overflow: auto; }
+.image-display-viewport.is-actual-size img { max-width: none; max-height: none; }
+.image-display-actions, .video-display-actions, .pdf-display-actions { flex-shrink: 0; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+.image-display-actions .button-row { justify-content: flex-end; }
+.reading-controls { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.reading-font .markdown-body { font-family: Georgia, 'Times New Roman', serif; font-size: 1.2rem; line-height: 1.75; }
+.reading-font .markdown-body code, .reading-font .markdown-body pre { font-family: ui-monospace, monospace; font-size: .95rem; }
+.markdown-body { overflow-wrap: anywhere; }
+.table-scroll { overflow-x: auto; margin-bottom: 1rem; }
+.table-scroll table { margin-bottom: 0; }
+.code-copy { margin-bottom: .35rem; }
+progress { width: 100%; accent-color: var(--color-accent); margin: 1rem 0; }
+@media (prefers-color-scheme: dark) {
+  :root { --color-accent: #2563eb; --color-accent-hover: #1d4ed8; --color-danger: #b91c1c; --color-danger-hover: #991b1b; }
+  a, .link-button { color: #93c5fd; }
+  .btn-primary, .btn-danger { color: white; }
+  .field-error { color: #fca5a5; }
+  .badge-active { color: #86efac; }
+}
+@media (max-width: 720px) {
+  .copy-field-controls { flex-wrap: wrap; }
+  .copy-field-controls input { flex: 1 1 200px; }
+  .image-display-actions .button-row { justify-content: flex-start; }
+  .image-display-actions, .video-display-actions, .pdf-display-actions { gap: .65rem; padding: .85rem 1.25rem; }
+  .audio-display { padding: 1rem; }
+  .centered-card { padding: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }

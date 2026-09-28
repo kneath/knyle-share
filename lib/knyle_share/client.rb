@@ -74,7 +74,7 @@ module KnyleShare
       )
     end
 
-    def put_file(upload_url:, file_path:, content_type:)
+    def put_file(upload_url:, file_path:, content_type:, &progress)
       uri = URI(upload_url)
       unless %w[http https].include?(uri.scheme) && !uri.host.to_s.empty?
         raise Error, "Direct upload URL must be an http or https URL with a host."
@@ -83,7 +83,7 @@ module KnyleShare
       File.open(file_path, "rb") do |file|
         request = Net::HTTP::Put.new(uri)
         request["Content-Type"] = content_type
-        request.body_stream = file
+        request.body_stream = progress ? ProgressStream.new(file, &progress) : file
         request.content_length = file.size
 
         response = start_http(uri) do |http|
@@ -99,6 +99,21 @@ module KnyleShare
       end
     rescue URI::InvalidURIError
       raise Error, "Direct upload URL must be an http or https URL with a host."
+    end
+
+    class ProgressStream
+      def initialize(io, &progress)
+        @io, @progress, @sent = io, progress, 0
+      end
+
+      def read(length = nil, buffer = nil)
+        data = @io.read(length, buffer)
+        if data
+          @sent += data.bytesize
+          @progress.call(@sent, @io.size)
+        end
+        data
+      end
     end
 
     private
@@ -133,7 +148,7 @@ module KnyleShare
     end
 
     def start_http(uri, &block)
-      options = { use_ssl: uri.scheme == "https" }
+      options = { use_ssl: uri.scheme == "https", open_timeout: 15, read_timeout: 300, write_timeout: 300 }
       if uri.scheme == "https"
         cert_store = TlsDefaults.ssl_ca_store
         options[:cert_store] = cert_store if cert_store

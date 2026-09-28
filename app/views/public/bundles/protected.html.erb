@@ -1,24 +1,22 @@
-<% content_for :title, "#{@bundle.title} · Knyle Share" %>
-
+<% content_for :title, "Protected file · Knyle Share" %>
 <div class="page-centered">
-  <div class="centered-card wide">
-    <h1 style="margin-bottom: 0.25rem;"><%= @bundle.title %></h1>
-    <p class="text-muted" style="margin-bottom: 1.25rem;">
-      This bundle is protected. Enter the shared password or use a valid expiring link.
-    </p>
-
+  <main class="centered-card wide">
+    <h1>
+      <%= @bundle.title %>
+    </h1>
+    <p class="text-muted mt-1">This bundle is protected. Enter the shared password, or ask the sender for a fresh expiring link.</p>
     <% if @access_message.present? %>
-      <p class="text-muted" style="margin-bottom: 1rem; color: var(--color-danger);">
+      <p id="access-error" class="field-error mt-2" role="alert">
         <%= @access_message %>
       </p>
     <% end %>
-
-    <%= form_with url: public_bundle_access_url_for(@bundle), method: :post do %>
-      <div style="display: grid; gap: 0.75rem;">
+    <%= form_with url: public_bundle_access_url_for(@bundle), method: :post, class: "stack-form mt-2", data: { controller: "password" } do %>
+      <div class="field-group">
         <label for="password">Shared password</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" style="width: 100%; font: inherit; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 0.75rem 0.9rem;">
-        <button class="btn btn-primary btn-full" type="submit">Open bundle</button>
+        <input id="password" name="password" type="password" required autocomplete="current-password" class="text-input" data-password-target="input" <%= 'autofocus' if @access_message.present? %> aria-invalid="<%= @access_message.present? %>" <%= 'aria-describedby=access-error' if @access_message.present? %>>
+        <button type="button" class="link-button" data-password-target="button" data-action="password#toggle" aria-pressed="false">Show password</button>
       </div>
+      <button class="btn btn-primary btn-full" type="submit">Open bundle</button>
     <% end %>
-  </div>
+  </main>
 </div>

@@ -25,6 +25,14 @@ Rails.application.routes.draw do
       end
       get "bundles", to: "bundles#index", as: :bundles
       get "bundles/new", to: "uploads#new", as: :new_bundle
+      get "uploads/availability", to: "uploads#availability", as: :upload_availability
+      get "uploads/:id", to: "uploads#show", as: :upload
+      patch "uploads/:id", to: "uploads#update"
+      put "uploads/:id/file", to: "uploads#transfer"
+      delete "uploads/:id", to: "uploads#destroy"
+      patch "bundles/:id", to: "bundles#update"
+      post "bundles/:id/revoke-links", to: "bundles#revoke_links", as: :revoke_bundle_links
+      post "storage-cleanups/retry", to: "bundles#retry_cleanup", as: :retry_cleanup
       post "uploads", to: "uploads#create", as: :uploads
       post "uploads/:id/process", to: "uploads#process_upload", as: :process_upload
       get "bundles/:id", to: "bundles#show", as: :bundle
@@ -43,6 +51,9 @@ Rails.application.routes.draw do
     scope module: :public do
       get "/", to: "bundles#show", as: :public_static_bundle
       post "access", to: "access#create", as: :public_static_bundle_access
+      get "_share/media", to: "bundles#media_source"
+      get "_share/preview", to: "bundles#preview"
+      get "_share/original", to: "bundles#original"
       get "raw", to: "bundles#raw", as: :public_static_bundle_raw
       get "download", to: "bundles#download", as: :public_static_bundle_download
       get "/*asset_path", to: "bundles#asset", as: :public_static_bundle_asset

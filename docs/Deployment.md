@@ -196,7 +196,7 @@ The current Blueprint defines:
 - Runtime `ruby`
 - Plan `starter`
 - Build command `bundle install && bundle exec rails assets:precompile`
-- Start command `bundle exec rails db:prepare && bundle exec puma -C config/puma.rb`
+- Start command `bin/start` (prepares the database and supervises Puma and the publishing worker)
 - Health check path `/up`
 - A persistent disk mounted at `/var/data`
 - Generated `SECRET_KEY_BASE`
@@ -535,3 +535,69 @@ Official docs:
 - [AWS S3: Creating a general purpose bucket](https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-bucket-overview.html)
 - [AWS S3: Block public access settings](https://docs.aws.amazon.com/AmazonS3/latest/userguide/configuring-block-public-access-bucket.html)
 - [Sentry for Rails](https://docs.sentry.io/platforms/ruby/guides/rails/)
+
+## Publishing recovery and browser uploads
+
+Run `bin/start` for deployments using the persistent SQLite disk. It prepares
+migrations and supervises Puma and `bin/publishing-worker` on the same host. The
+Render blueprint now uses this entry point. For another process manager, run
+both processes against the **same database and disk**; do not point a separate
+Render service at a different SQLite database.
+
+Upload state and storage-deletion tasks are persisted. The worker picks up
+queued publications after restarts, retries failed deletions, and cleans up
+unfinished uploads after seven days. Processing interrupted for more than 30
+minutes becomes retryable. The admin library reports pending/failed file
+cleanup and provides a Retry action. For a one-off recovery pass, run:
+
+```sh
+bin/rails maintenance:run
+```
+
+Browser uploads now use a presigned PUT to S3, with a same-origin fallback
+through Rails when direct transfer is unavailable. To avoid the fallback,
+configure your bucket's CORS rule with the exact admin origin (including the
+scheme and any port), for example:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://admin.example.com"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Keep the bucket private. This grants browser transfer permission, not public
+read access. No CORS GET permission is needed for audio waveforms because the
+viewer now uses native media controls without a separate full-file fetch.
+
+Folder archives accept `.tar.gz` and `.tgz`, up to 10,000 files and 256 MB
+uncompressed. New and replaced directory bundles get a prepared Download all
+archive. Existing bundles retain their current files and URLs; republish them
+to add this archive. Assembly uses temporary disk space, so budget free space
+for an uncompressed and compressed copy during publication.
+
+## Release verification
+
+Before rollout, apply migrations, start both supervised processes, and verify:
+
+- Publish a protected file and save its one-time password from the result page.
+- Publish a folder archive, replace it at the same URL, and download all files.
+- Stop/restart the web process during preparation; verify publication can finish
+  or be retried without reuploading. Test storage deletion with a temporary
+  storage outage and confirm it is retried.
+- Test direct browser PUT against the actual bucket CORS rule. Check that a
+  fallback upload works when CORS is unavailable.
+- Leave audio/video idle for 10–15 minutes, then play/seek. Verify expired source
+  URLs refresh and revoked protected access cannot obtain a fresh URL. Try PDFs
+  and videos on real iOS Safari and Android Chrome.
+- Measure cold/warm document and asset loads and check edge gzip/Brotli headers.
+  Public media shells intentionally use `private, no-store` so cached HTML does
+  not retain expiring media credentials; cacheable Markdown/static content keeps
+  its existing validators. Controllers load only on pages that use them.
+
+Production CDN placement and compression depend on the hosting environment.
+These changes do not configure or publish a CDN or modify live S3 settings.

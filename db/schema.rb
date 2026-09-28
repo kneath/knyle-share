@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_20_000300) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_28_000200) do
   create_table "api_tokens", force: :cascade do |t|
     t.string "label", null: false
     t.string "token_digest", null: false
@@ -60,6 +60,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_20_000300) do
     t.bigint "byte_size", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "published_bundle_id"
+    t.string "processing_token"
+    t.datetime "processing_started_at"
+    t.string "publish_prefix"
+    t.integer "expected_content_revision"
+    t.integer "expected_access_revision"
     t.index ["slug"], name: "index_bundle_uploads_on_slug"
     t.index ["status"], name: "index_bundle_uploads_on_status"
   end
@@ -97,6 +103,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_20_000300) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "access_revision", default: 1, null: false
+    t.text "description"
+    t.string "archive_storage_key"
+    t.bigint "archive_byte_size"
     t.index ["slug"], name: "index_bundles_on_slug", unique: true
   end
 
@@ -109,6 +118,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_20_000300) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["admin_github_uid"], name: "index_installations_on_admin_github_uid", unique: true
+  end
+
+  create_table "storage_cleanups", force: :cascade do |t|
+    t.text "object_keys", null: false
+    t.string "label", null: false
+    t.integer "attempts", default: 0, null: false
+    t.text "last_error"
+    t.datetime "next_attempt_at"
+    t.datetime "locked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["next_attempt_at"], name: "index_storage_cleanups_on_next_attempt_at"
   end
 
   create_table "viewer_sessions", force: :cascade do |t|

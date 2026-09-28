@@ -2,14 +2,14 @@
 
 <div class="page">
   <main>
-    <div class="markdown-document">
+    <div class="markdown-document" data-controller="document"><div class="reading-controls"><button class="btn btn-secondary" type="button" data-action="document#toggleFont" aria-pressed="false">Reading font</button></div>
       <article class="markdown-body">
         <%= @rendered_markdown.html_safe %>
       </article>
 
       <footer class="markdown-actions">
-        <a class="btn btn-secondary" href="<%= public_bundle_raw_url_for(@bundle, access_token: params[:access]) %>">View raw markdown</a>
-        <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">Download file</a>
+        <% unless @bundle.presentation_kind == "file_listing" %><a class="btn btn-secondary" href="<%= public_bundle_raw_url_for(@bundle, access_token: params[:access]) %>">View raw markdown</a><% end %>
+        <a class="btn btn-primary" href="<%= asset_download_url %>">Download file</a>
       </footer>
     </div>
   </main>

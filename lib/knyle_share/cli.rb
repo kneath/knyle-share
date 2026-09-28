@@ -24,6 +24,7 @@ module KnyleShare
       command = argv.first
 
       return run_login(argv.drop(1)) if command == "login"
+      return run_resume(argv.drop(1)) if command == "resume"
       return print_usage if command.nil? || %w[-h --help help].include?(command)
       return run_share(argv.drop(1)) if command == "share"
 
@@ -122,15 +123,33 @@ module KnyleShare
           )
 
           say "Uploading bundle…" unless options[:json]
-          client.put_file(
-            upload_url: upload.fetch("upload_url"),
-            file_path: source.upload_path,
-            content_type: source.content_type
-          )
+          last_percent = -1
+          transfer_attempts = 0
+          begin
+            transfer_attempts += 1
+            client.put_file(upload_url: upload.fetch("upload_url"), file_path: source.upload_path, content_type: source.content_type) do |sent, total|
+              percent = total.zero? ? 100 : sent * 100 / total
+              if !options[:json] && stdout.tty? && percent != last_percent
+                stdout.print("\rUploading #{percent}% (#{sent} / #{total} bytes)")
+                stdout.flush
+                last_percent = percent
+              end
+            end
+          rescue Error => error
+            retryable = !error.is_a?(ApiError) || error.status >= 500
+            raise unless retryable && transfer_attempts < 2
+            say "Retrying file transfer…" unless options[:json]
+            retry
+          end
+          stdout.puts if !options[:json] && stdout.tty?
 
           say "Publishing bundle…" unless options[:json]
           client.finalize_upload(id: upload.fetch("id"), byte_size: source.byte_size)
-          process_result = client.process_upload(id: upload.fetch("id"))
+          begin
+            process_result = client.process_upload(id: upload.fetch("id"))
+          rescue Error => error
+            raise Error, "File uploaded, but publishing did not finish: #{error.message} Resume without uploading again: knyle-share resume #{upload.fetch('id')}"
+          end
           bundle = process_result.fetch("bundle")
 
           response = {
@@ -143,9 +162,13 @@ module KnyleShare
           response["password"] = password if password
 
           if options[:link_expiration]
-            link = client.create_link(slug: bundle_slug, expires_in: options[:link_expiration])
-            response["signed_url"] = link.fetch("url")
-            response["signed_url_expires_at"] = link.fetch("expires_at")
+            begin
+              link = client.create_link(slug: bundle_slug, expires_in: options[:link_expiration])
+              response["signed_url"] = link.fetch("url")
+              response["signed_url_expires_at"] = link.fetch("expires_at")
+            rescue Error => error
+              response["warning"] = "Bundle published successfully, but the expiring link could not be created: #{error.message}. Create a link from the admin page."
+            end
           end
 
           if options[:json]
@@ -161,6 +184,18 @@ module KnyleShare
         end
 
       result ? 0 : 1
+    end
+
+    def run_resume(argv)
+      json = argv.delete("--json")
+      id = argv.shift
+      raise Error, "Usage: knyle-share resume UPLOAD_ID [--json]" unless id.to_s.match?(/\A\d+\z/) && argv.empty?
+      configuration = config_store.load
+      client = Client.new(admin_url: configuration[:admin_url], api_token: configuration[:api_token])
+      bundle = client.process_upload(id:).fetch("bundle")
+      result = { "slug" => bundle.fetch("slug"), "share_url" => bundle.fetch("public_url"), "warning" => "Passwords cannot be retrieved. If you did not save the password, reset it from the admin page." }
+      json ? stdout.puts(JSON.pretty_generate(result)) : print_share_summary(result)
+      0
     end
 
     def default_share_options
@@ -376,7 +411,7 @@ module KnyleShare
     end
 
     def file_slug_stem(filename)
-      filename.sub(/(\.tar\.gz|\.tgz)\z/i, "").sub(/\.[^.]+\z/, "")
+      filename.sub(/(\.tar\.gz|\.tgz|\.[^.]+)\z/i, "")
     end
 
     def slugify(value)
@@ -418,6 +453,7 @@ module KnyleShare
       say "Share URL: #{response.fetch('share_url')}"
       say "Password: #{response['password']}" if response["password"]
       say "Expiring link: #{response['signed_url']}" if response["signed_url"]
+      say "Warning: #{response['warning']}" if response["warning"]
     end
 
     def login_parser(options)
@@ -445,7 +481,7 @@ module KnyleShare
           options[:access_mode_flags] << "protected"
         end
         opts.on("--password PASSWORD", "Custom password for a protected bundle") { |value| options[:password] = value }
-        opts.on("--generate-password", "Generate a three-word password for a protected bundle") { options[:generate_password] = true }
+        opts.on("--generate-password", "Generate a strong random password for a protected bundle") { options[:generate_password] = true }
         opts.on("--link-expiration PRESET", LINK_PRESETS.keys, "Generate an expiring link: #{LINK_PRESETS.keys.join(', ')}") do |value|
           options[:link_expiration] = value
         end
@@ -475,6 +511,7 @@ module KnyleShare
         Commands:
           login    Verify and save CLI configuration
           share    Upload and publish a bundle
+          resume   Finish publishing an already uploaded file by upload ID
 
         Share options:
       USAGE

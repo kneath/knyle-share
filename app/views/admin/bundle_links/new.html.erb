@@ -1,55 +1,34 @@
 <% content_for :title, "Generate Link · Knyle Share" %>
-
 <div class="page">
   <%= render "admin/shared/header" %>
-
   <main>
     <div class="container">
       <div class="breadcrumb">
-        <a href="<%= admin_bundles_path %>">Bundles</a> /
-        <a href="<%= admin_bundle_path(@bundle) %>"><%= @bundle.slug %></a> /
-        Generate link
+        <%= link_to "Bundles", admin_bundles_path %> / <%= link_to @bundle.title, admin_bundle_path(@bundle) %>
       </div>
-
       <div class="page-title">
         <h1>Generate expiring link</h1>
       </div>
-
-      <p class="text-muted mb-2">
-        Create a link that grants access to <strong style="color: var(--color-text);"><%= @bundle.slug %></strong> without requiring a password. The link will expire after the chosen duration.
-      </p>
-
-      <div class="detail-section">
-        <h2>Choose expiration</h2>
-        <p class="text-muted mt-1">Each button generates a new signed URL with the selected expiration.</p>
-
-        <%= form_with url: admin_bundle_link_path(@bundle), method: :post, class: "stack-form mt-2" do %>
-          <div class="pill-group">
-            <% @expiration_presets.each do |key, preset| %>
-              <button class="pill <%= "is-selected" if @selected_preset == key %>" type="submit" name="expires_in" value="<%= key %>">
-                <%= preset.fetch(:label) %>
-              </button>
-            <% end %>
+      <p class="text-muted mb-2">Give someone access to <strong>
+          <%= @bundle.title %>
+        </strong> without asking for a password. Anyone with this link can use it until it expires.</p>
+      <section class="detail-section">
+        <%= form_with url: admin_bundle_link_path(@bundle), method: :post, class: "stack-form" do |form| %>
+          <div class="field-group">
+            <%= form.label :expires_in, "Access lasts for" %>
+            <%= form.select :expires_in, @expiration_presets.map { |key, preset| [preset.fetch(:label), key] }, { selected: @selected_preset }, class: "text-input" %>
           </div>
+          <button class="btn btn-primary" type="submit">Create link</button>
         <% end %>
-      </div>
-
-      <div class="detail-section">
-        <h2>Your expiring link</h2>
-        <% if @generated_link.present? %>
-          <p class="text-muted mb-1">
-            This link expires <%= time_tag(@expires_at, @expires_at.strftime("%b %-d, %Y at %-I:%M %p")) %>.
-          </p>
-
-          <div class="copy-box">
-            <code><%= @generated_link %></code>
-          </div>
-        <% else %>
-          <p class="text-muted mb-1">
-            No link generated yet. Choose one of the expiration presets above to mint a signed link.
-          </p>
-        <% end %>
-      </div>
+      </section>
+      <% if @generated_link.present? %>
+        <section class="detail-section">
+          <h2>Your expiring link</h2>
+          <p class="text-muted mt-1">Expires in <%= distance_of_time_in_words(Time.current, @expires_at) %> — <%= time_tag @expires_at, @expires_at.utc.strftime("%b %-d, %Y at %-I:%M %p UTC") %>.</p>
+          <%= render "shared/copy_field", id: "expiring-link", label: "Password-free link", value: @generated_link, button: "Copy link" %>
+          <p class="field-note mt-1">Changing the password, replacing files, or revoking access makes this link stop working earlier.</p>
+        </section>
+      <% end %>
     </div>
   </main>
 </div>

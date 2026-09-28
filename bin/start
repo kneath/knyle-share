@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+bundle exec rails db:prepare
+bundle exec ruby bin/publishing-worker &
+worker_pid=$!
+bundle exec puma -C config/puma.rb &
+web_pid=$!
+trap 'kill "$web_pid" "$worker_pid" 2>/dev/null || true' EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+# Stop the service if either process exits so the host restarts both.
+while kill -0 "$web_pid" 2>/dev/null && kill -0 "$worker_pid" 2>/dev/null; do sleep 2; done
+exit 1

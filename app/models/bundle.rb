@@ -23,24 +23,33 @@ class Bundle < ApplicationRecord
   has_secure_password validations: false
 
   has_many :assets, class_name: "BundleAsset", dependent: :destroy
+  has_one :primary_asset, -> { joins(:bundle).where("bundle_assets.path = bundles.entry_path") }, class_name: "BundleAsset"
   has_many :viewer_sessions, dependent: :destroy
   has_many :bundle_views, dependent: :destroy
   has_many :unique_viewers, class_name: "BundleUniqueViewer", dependent: :destroy
 
   validates :slug,
     presence: true,
+    length: { maximum: 63 },
     uniqueness: true,
     format: { with: SLUG_FORMAT }
-  validates :title, presence: true
+  validates :title, presence: true, length: { maximum: 200 }
+  validates :description, length: { maximum: 1000 }
+  before_destroy :schedule_storage_cleanup, prepend: true
   validates :source_kind, inclusion: { in: SOURCE_KIND_LABELS.keys }
   validates :presentation_kind, inclusion: { in: PRESENTATION_KIND_LABELS.keys }
   validates :status, inclusion: { in: STATUS_LABELS.keys }
   validates :access_mode, inclusion: { in: ACCESS_MODE_LABELS.keys }
   validates :access_revision, numericality: { greater_than_or_equal_to: 1, only_integer: true }
+  validate :password_fits_bcrypt
   validate :slug_is_not_reserved
   validate :protected_bundle_requires_password
 
   scope :recent_first, -> { order(updated_at: :desc, id: :desc) }
+
+  def self.valid_slug?(value)
+    value.to_s.length <= 63 && SLUG_FORMAT.match?(value.to_s)
+  end
 
   def to_param
     slug
@@ -71,6 +80,14 @@ class Bundle < ApplicationRecord
   end
 
   def presentation_label
+    if presentation_kind == "single_download"
+      type = primary_asset&.content_type.to_s
+      return "Image" if type.start_with?("image/")
+      return "Audio" if type.start_with?("audio/")
+      return "Video" if type.start_with?("video/")
+      return "PDF" if type == "application/pdf"
+      return "File"
+    end
     PRESENTATION_KIND_LABELS.fetch(presentation_kind)
   end
 
@@ -107,6 +124,14 @@ class Bundle < ApplicationRecord
   end
 
   private
+
+  def schedule_storage_cleanup
+    StorageCleanup.schedule!(assets.pluck(:storage_key) + [archive_storage_key], label: "Deleted #{slug}")
+  end
+
+  def password_fits_bcrypt
+    errors.add(:password, "must be at most 72 bytes") if password && password.bytesize > 72
+  end
 
   def slug_is_not_reserved
     return unless slug.present? && RESERVED_SLUGS.include?(slug)

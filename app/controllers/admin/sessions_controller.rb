@@ -47,8 +47,9 @@ module Admin
         return
       end
 
+      destination = SafeReturnPath.call(session[:admin_return_to], fallback: admin_bundles_path)
       start_admin_session!
-      redirect_to admin_bundles_path, notice: "Signed in as #{installation.admin_label}."
+      redirect_to destination, notice: "Signed in as #{installation.admin_label}."
     end
 
     def start_admin_session!

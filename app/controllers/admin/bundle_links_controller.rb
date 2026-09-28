@@ -34,6 +34,10 @@ module Admin
     end
 
     def ensure_protected_bundle
+      if @bundle.disabled?
+        redirect_to admin_bundle_path(@bundle), alert: "Enable this bundle before creating a share link."
+        return
+      end
       return if @bundle.protected_access?
 
       redirect_to admin_bundle_path(@bundle), alert: "Signed links only apply to protected bundles."

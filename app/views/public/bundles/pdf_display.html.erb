@@ -1,18 +1,17 @@
 <% content_for :title, "#{@bundle.title} · Knyle Share" %>
-
 <div class="pdf-display">
-  <iframe class="pdf-display-viewport" src="<%= @pdf_url %>" type="application/pdf"></iframe>
-
+  <iframe class="pdf-display-viewport" src="<%= @pdf_url %>" title="PDF preview: <%= @bundle.title %>">
+  </iframe>
   <footer class="pdf-display-actions">
     <div>
-      <h1><%= @bundle.title %></h1>
-      <p class="text-muted">
-        <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
-      </p>
+      <h1>
+        <%= @bundle.title %>
+      </h1>
+      <p class="text-muted">If the preview is blank or expired, open the PDF directly.</p>
     </div>
-
-    <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
-      Download file
-    </a>
+    <div class="button-row">
+      <%= link_to "Open PDF", viewer_endpoint('original'), target: "_blank", rel: "noreferrer", class: "btn btn-secondary" %>
+      <%= link_to "Download file", asset_download_url, class: "btn btn-primary" %>
+    </div>
   </footer>
 </div>

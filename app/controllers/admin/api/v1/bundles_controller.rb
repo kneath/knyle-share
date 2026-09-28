@@ -6,7 +6,7 @@ module Admin
 
         def availability
           slug = params[:slug].to_s
-          valid = Bundle::SLUG_FORMAT.match?(slug)
+          valid = Bundle.valid_slug?(slug)
           reserved = Bundle::RESERVED_SLUGS.include?(slug)
           existing_bundle = Bundle.find_by(slug:)
 

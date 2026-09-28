@@ -43,7 +43,9 @@ class AdminApiTokensSystemTest < ApplicationSystemTestCase
     assert_text "MacBook CLI"
     assert_text "New token"
 
-    click_button "Revoke"
+    dismiss_confirm { click_button "Revoke" }
+    assert_text "Active"
+    accept_confirm { click_button "Revoke" }
 
     assert_text "Revoked MacBook CLI."
     assert_text "Revoked"

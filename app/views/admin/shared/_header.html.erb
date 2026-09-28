@@ -1,15 +1,16 @@
 <header class="header-bar">
-  <nav class="header-left">
-    <a href="<%= admin_bundles_path %>" class="brand">Knyle Share</a>
-    <span class="header-separator">&middot;</span>
-    <a href="<%= admin_bundles_path %>">Bundles</a>
-    <a href="<%= admin_api_tokens_path %>">API Tokens</a>
+  <a href="<%= admin_bundles_path %>" class="brand">Knyle Share</a>
+  <nav class="header-left" aria-label="Administration">
+    <%= link_to "Bundles", admin_bundles_path, aria: { current: controller_name.in?(%w[bundles uploads bundle_links]) ? "page" : nil } %>
+    <%= link_to "API Tokens", admin_api_tokens_path, aria: { current: controller_name == "api_tokens" ? "page" : nil } %>
   </nav>
-  <div class="header-right">
-    <span><%= installation.admin_label %></span>
-    <form action="<%= admin_logout_path %>" method="post" class="inline-form">
-      <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-      <button class="btn btn-ghost btn-small" type="submit">Sign out</button>
-    </form>
-  </div>
+  <details class="account-menu">
+    <summary>Account</summary>
+    <div class="account-panel">
+      <p class="text-muted">
+        <%= installation.admin_label %>
+      </p>
+      <%= button_to "Sign out", admin_logout_path, class: "btn btn-secondary mt-1" %>
+    </div>
+  </details>
 </header>

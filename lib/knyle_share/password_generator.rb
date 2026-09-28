@@ -2,41 +2,10 @@ require "securerandom"
 
 module KnyleShare
   class PasswordGenerator
-    WORDS = %w[
-      amber
-      anchor
-      apricot
-      atlas
-      banner
-      basil
-      beacon
-      birch
-      cedar
-      cinder
-      clover
-      cobalt
-      coral
-      harbor
-      hazel
-      heather
-      juniper
-      lantern
-      maple
-      marigold
-      meadow
-      moss
-      pebble
-      river
-      saffron
-      sparrow
-      spruce
-      summit
-      thicket
-      willow
-    ].freeze
-
+    # 16 random bytes provide 128 bits of entropy. URL-safe characters are easy
+    # to copy and use consistently in the CLI, browser, and admin interface.
     def self.generate
-      Array.new(3) { WORDS[SecureRandom.random_number(WORDS.length)] }.join(" ")
+      SecureRandom.urlsafe_base64(16)
     end
   end
 end

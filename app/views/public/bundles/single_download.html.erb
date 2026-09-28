@@ -7,7 +7,7 @@
       <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
     </p>
 
-    <a class="btn btn-primary btn-full" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
+    <a class="btn btn-primary btn-full" href="<%= asset_download_url %>">
       Download file
     </a>
   </div>

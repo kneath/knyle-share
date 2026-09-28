@@ -2,12 +2,13 @@ class BundleUpload < ApplicationRecord
   RESERVED_SLUGS = Bundle::RESERVED_SLUGS
   SOURCE_KIND_VALUES = %w[directory file].freeze
   ACCESS_MODE_VALUES = %w[public protected].freeze
-  STATUS_VALUES = %w[pending staged processing ready failed].freeze
+  STATUS_VALUES = %w[pending staged queued processing ready failed canceled].freeze
 
   has_secure_password validations: false
 
   validates :slug,
     presence: true,
+    length: { maximum: 63 },
     format: { with: Bundle::SLUG_FORMAT }
   validates :source_kind, inclusion: { in: SOURCE_KIND_VALUES }
   validates :access_mode, inclusion: { in: ACCESS_MODE_VALUES }
@@ -16,6 +17,7 @@ class BundleUpload < ApplicationRecord
   validates :ingest_key, presence: true
   validates :byte_size, numericality: { greater_than_or_equal_to: 0 }
   validates :replace_existing, inclusion: { in: [true, false] }
+  validate :password_fits_bcrypt
   validate :slug_is_not_reserved
   validate :protected_upload_requires_password
 
@@ -66,6 +68,10 @@ class BundleUpload < ApplicationRecord
   end
 
   private
+
+  def password_fits_bcrypt
+    errors.add(:password, "must be at most 72 bytes") if password && password.bytesize > 72
+  end
 
   def slug_is_not_reserved
     return unless slug.present? && RESERVED_SLUGS.include?(slug)

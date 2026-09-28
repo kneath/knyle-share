@@ -116,7 +116,7 @@ module Public
       when "file_listing"
         @current_file_listing_prefix = requested_file_listing_prefix
         if @current_file_listing_prefix == INVALID_FILE_LISTING_PREFIX
-          render plain: "Directory not found.", status: :not_found
+          render_missing
           return
         end
 
@@ -127,7 +127,7 @@ module Public
           prefix: @current_file_listing_prefix
         )
         if @current_file_listing_prefix.present? && @total_file_listing_entries.zero?
-          render plain: "Directory not found.", status: :not_found
+          render_missing
           return
         end
 
@@ -157,7 +157,7 @@ module Public
         render plain: "Unsupported bundle presentation", status: :unprocessable_entity
       end
     rescue ActiveRecord::RecordNotFound, BundleStorage::MissingObjectError
-      render plain: "Bundle asset not found.", status: :not_found
+      render_missing
     end
 
     def raw
@@ -173,7 +173,7 @@ module Public
 
       send_asset(entry_asset, disposition: "inline")
     rescue ActiveRecord::RecordNotFound, BundleStorage::MissingObjectError
-      render plain: "Bundle asset not found.", status: :not_found
+      render_missing
     end
 
     def download
@@ -182,6 +182,12 @@ module Public
       result = ensure_bundle_access!
       return unless result
 
+      if @bundle.archive_storage_key.present?
+        archive = BundleAsset.new(path: "#{@bundle.slug}.tar.gz", storage_key: @bundle.archive_storage_key, content_type: "application/gzip", byte_size: @bundle.archive_byte_size)
+        send_asset(archive, disposition: "attachment")
+        return
+      end
+
       unless %w[markdown_document single_download].include?(@bundle.presentation_kind)
         render plain: "Download is not available for this bundle.", status: :not_found
         return
@@ -189,7 +195,7 @@ module Public
 
       send_asset(entry_asset, disposition: "attachment")
     rescue ActiveRecord::RecordNotFound, BundleStorage::MissingObjectError
-      render plain: "Bundle asset not found.", status: :not_found
+      render_missing
     end
 
     def asset
@@ -211,10 +217,65 @@ module Public
         send_asset(asset, disposition: @bundle.presentation_kind == "file_listing" ? "attachment" : "inline")
       end
     rescue ActiveRecord::RecordNotFound, BundleStorage::MissingObjectError
-      render plain: "Bundle asset not found.", status: :not_found
+      render_missing
+    end
+
+    def media_source
+      response.set_header("Cache-Control", "private, no-store")
+      unless @bundle.active? && access_result.allowed?
+        return render json: { error: "Access expired or this bundle is unavailable. Open the shared link again to continue." }, status: :unauthorized
+      end
+      asset = preview_asset
+      unless displayable_image?(asset) || displayable_video?(asset) || displayable_pdf?(asset) || displayable_audio?(asset)
+        return render json: { error: "This file does not have a media preview." }, status: :unprocessable_entity
+      end
+      render json: { url: inline_asset_url(asset) }
+    end
+
+    def original
+      return unless ensure_bundle_access!
+      asset = preview_asset
+      unless displayable_image?(asset) || displayable_pdf?(asset) || displayable_audio?(asset) || displayable_video?(asset)
+        return render_missing
+      end
+      send_asset(asset, disposition: "inline")
+    end
+
+    def preview
+      return unless ensure_bundle_access!
+      @entry_asset = preview_asset
+      response.set_header("Cache-Control", "private, no-store")
+      if displayable_image?(@entry_asset)
+        @image_url = inline_asset_url(@entry_asset)
+        render :image_display
+      elsif displayable_audio?(@entry_asset)
+        @audio_url = inline_asset_url(@entry_asset)
+        render :audio_display
+      elsif displayable_video?(@entry_asset)
+        @video_url = inline_asset_url(@entry_asset)
+        render :video_display
+      elsif displayable_pdf?(@entry_asset)
+        @pdf_url = inline_asset_url(@entry_asset)
+        render :pdf_display
+      elsif %w[.md .markdown].include?(File.extname(@entry_asset.path).downcase) && storage.render_markdown_inline?(@entry_asset)
+        @rendered_markdown = BundleMarkdownRenderer.render(read_bundle_asset(@entry_asset))
+        render :markdown
+      else
+        render :single_download
+      end
     end
 
     private
+
+    def preview_asset
+      if @bundle.presentation_kind == "file_listing"
+        @bundle.assets.find_by!(path: params[:path].to_s)
+      elsif @bundle.presentation_kind == "single_download"
+        entry_asset
+      else
+        raise ActiveRecord::RecordNotFound
+      end
+    end
 
     DISPLAYABLE_IMAGE_CONTENT_TYPES = %w[
       image/jpeg image/png image/gif image/webp image/svg+xml
@@ -280,7 +341,7 @@ module Public
       fetch_site = request.get_header("HTTP_SEC_FETCH_SITE").to_s
       return if %w[same-origin none].include?(fetch_site)
 
-      render plain: "Bundle asset not found.", status: :not_found
+      render_missing
     end
   end
 end

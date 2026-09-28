@@ -1,21 +1,26 @@
 <% content_for :title, "#{@bundle.title} · Knyle Share" %>
-
 <div class="page-centered">
-  <div class="audio-display" data-controller="audio-player" data-audio-player-url-value="<%= @audio_url %>">
-    <h1><%= @bundle.title %></h1>
-    <p class="text-muted"><%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %></p>
-
-    <canvas class="audio-display-waveform" data-audio-player-target="waveform" data-action="click->audio-player#seek"></canvas>
-
-    <div class="audio-display-controls">
-      <button class="btn btn-secondary" data-audio-player-target="playPause" data-action="audio-player#toggle">Play</button>
-      <span class="audio-display-time" data-audio-player-target="time">0:00 / 0:00</span>
+  <main class="audio-display" data-controller="media" data-media-source-value="<%= viewer_endpoint('media') %>">
+    <h1>
+      <%= @bundle.title %>
+    </h1>
+    <p class="text-muted">
+      <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
+    </p>
+    <audio controls preload="metadata" src="<%= @audio_url %>" data-media-target="media" data-action="error->media#failed waiting->media#waiting canplay->media#ready" aria-label="<%= @bundle.title %>">
+    </audio>
+    <div class="field-group">
+      <label for="playback-speed">Playback speed</label>
+      <select id="playback-speed" class="text-input" data-action="change->media#speed">
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+        <option value="2">2×</option>
+      </select>
     </div>
-
-    <audio preload="metadata" data-audio-player-target="audio"></audio>
-
-    <a class="btn btn-primary btn-full" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
-      Download file
-    </a>
-  </div>
+    <%= render 'public/bundles/media_feedback' %>
+    <%= link_to "Download file", asset_download_url, class: "btn btn-primary mt-2" %>
+    <%= link_to "All files", public_bundle_url_for(@bundle), class: "btn btn-secondary mt-2" if @bundle.presentation_kind == 'file_listing' %>
+  </main>
 </div>

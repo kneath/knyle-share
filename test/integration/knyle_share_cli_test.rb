@@ -288,7 +288,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
         assert_equal "summer-in-the-sierra", payload["slug"]
         assert_equal "https://share.example.test/summer-in-the-sierra", payload["share_url"]
         assert_equal "https://share.example.test/summer-in-the-sierra?access=signed-token", payload["signed_url"]
-        assert_match(/\A[a-z]+ [a-z]+ [a-z]+\z/, payload["password"])
+        assert_match(/\A[A-Za-z0-9_-]{22}\z/, payload["password"])
 
         upload = server.uploads.fetch(1)
         assert_equal "protected", upload.dig(:params, "access_mode")

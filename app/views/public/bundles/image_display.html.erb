@@ -1,20 +1,22 @@
 <% content_for :title, "#{@bundle.title} · Knyle Share" %>
-
-<div class="image-display">
-  <div class="image-display-viewport">
-    <img src="<%= @image_url %>" alt="<%= @bundle.title %>">
-  </div>
-
+<div class="image-display" data-controller="image-viewer media" data-media-source-value="<%= viewer_endpoint('media') %>">
+  <main class="image-display-viewport" data-image-viewer-target="viewport">
+    <img src="<%= @image_url %>" alt="<%= @bundle.title %>" data-media-target="media" data-action="error->media#failed load->media#ready">
+  </main>
   <footer class="image-display-actions">
     <div>
-      <h1><%= @bundle.title %></h1>
+      <h1>
+        <%= @bundle.title %>
+      </h1>
       <p class="text-muted">
         <%= public_bundle_file_name(@entry_asset) %> · <%= public_bundle_size_label(@entry_asset.byte_size) %>
       </p>
+      <%= render 'public/bundles/media_feedback' %>
     </div>
-
-    <a class="btn btn-primary" href="<%= public_bundle_download_url_for(@bundle, access_token: params[:access]) %>">
-      Download file
-    </a>
+    <div class="button-row">
+      <button type="button" class="btn btn-secondary" data-image-viewer-target="button" data-action="image-viewer#toggle" aria-pressed="false">Actual size</button>
+      <%= link_to "Open original", viewer_endpoint('original'), target: "_blank", rel: "noreferrer", class: "btn btn-secondary" %>
+      <%= link_to "Download file", asset_download_url, class: "btn btn-primary" %>
+    </div>
   </footer>
 </div>

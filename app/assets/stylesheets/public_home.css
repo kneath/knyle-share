@@ -218,3 +218,4 @@
     text-align: left;
   }
 }
+.threshold-hint { font-size: .85rem; color: var(--color-muted); margin: 1rem 0; max-width: 32rem; }

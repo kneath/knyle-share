@@ -4,7 +4,7 @@ services:
     runtime: ruby
     plan: starter
     buildCommand: bundle install && bundle exec rails assets:precompile
-    startCommand: bundle exec rails db:prepare && bundle exec puma -C config/puma.rb
+    startCommand: bin/start
     healthCheckPath: /up
     disk:
       name: knyle-share-data

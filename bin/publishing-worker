@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+require_relative "../config/environment"
+# Run beside Puma on the same host/disk as SQLite. Persistent records recover
+# queued publication and deletion work after a web-process restart.
+stop = false
+Signal.trap("TERM") { stop = true }
+Signal.trap("INT") { stop = true }
+until stop
+  Rails.application.executor.wrap do
+    PublishingMaintenance.run
+  rescue StandardError => error
+    Rails.logger.error("Publishing worker: #{error.class}: #{error.message}")
+  end
+  30.times { break if stop; sleep 1 }
+end

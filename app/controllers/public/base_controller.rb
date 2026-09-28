@@ -5,7 +5,13 @@ module Public
     PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS = 1.minute.to_i
     BUNDLE_PAGE_CACHE_VERSION = 1
 
+    rescue_from ActiveRecord::RecordNotFound, BundleStorage::MissingObjectError, with: :render_missing
+
     private
+
+    def render_missing
+      render "public/bundles/error", status: :not_found
+    end
 
     def set_bundle
       @bundle = Bundle.find_by!(slug: bundle_slug)
@@ -45,9 +51,11 @@ module Public
       return result if result.allowed?
 
       if allow_password_gate
+        session[:bundle_return_to] = SafeReturnPath.call(request.fullpath) if params[:prefix].present? || params[:page].present?
         @access_message = result.message
         render "public/bundles/protected", status: result.message.present? ? :unauthorized : :ok
       else
+        session[:bundle_return_to] = SafeReturnPath.call(request.fullpath) if request.get?
         redirect_to public_bundle_url_for(@bundle), alert: result.message.presence || "This bundle is protected.", allow_other_host: true
       end
 
@@ -104,7 +112,7 @@ module Public
         etag: bundle_page_cache_key(asset:, variant:, extra:),
         last_modified: bundle_page_last_modified(asset:),
         public: @bundle.public_access?,
-        cache_control: bundle_page_cache_control
+        cache_control: (variant.to_s.end_with?("_display") ? { no_store: true, private: true } : bundle_page_cache_control)
       )
     end
 

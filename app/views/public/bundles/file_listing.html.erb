@@ -26,6 +26,7 @@
         <% end %>
       </div>
 
+      <% if @bundle.archive_storage_key.present? %><div class="button-row mb-2"><%= link_to "Download all (.tar.gz)", public_bundle_download_url_for(@bundle, access_token: params[:access]), class: "btn btn-primary" %></div><% end %>
       <div class="card">
         <% if @file_listing_entries.any? %>
           <ul class="bundle-list">
@@ -35,22 +36,23 @@
                   <a class="bundle-item" href="<%= public_bundle_file_listing_url_for(@bundle, access_token: params[:access], prefix: entry.path) %>">
                     <div>
                       <div class="bundle-name"><%= entry.name %>/</div>
-                      <div class="bundle-slug mono"><%= entry.path %></div>
+
                     </div>
                     <div class="bundle-stats">
                       <span class="badge">Folder</span>
                     </div>
                   </a>
                 <% else %>
-                  <a class="bundle-item" href="<%= public_bundle_asset_url_for(@bundle, asset_path: entry.path, access_token: params[:access]) %>">
+                  <a class="bundle-item" href="<%= viewer_endpoint("preview", entry) %>">
                     <div>
                       <div class="bundle-name"><%= entry.name %></div>
-                      <div class="bundle-slug mono"><%= entry.path %></div>
+
                     </div>
                     <div class="bundle-stats">
                       <div><%= public_bundle_size_label(entry.byte_size) %></div>
                     </div>
                   </a>
+                  <%= link_to "Download", public_bundle_asset_url_for(@bundle, asset_path: entry.path, access_token: params[:access]), class: "btn btn-secondary", aria: { label: "Download #{entry.name}" } %>
                 <% end %>
               </li>
             <% end %>

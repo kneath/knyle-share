@@ -1,48 +1,107 @@
 <% content_for :title, "Bundles · Knyle Share" %>
-
 <div class="page">
   <%= render "admin/shared/header" %>
-
   <main>
     <div class="container">
       <div class="page-title">
-        <h1>Bundles <span class="count"><%= @bundles.size %></span></h1>
-        <a href="<%= admin_new_bundle_path %>" class="btn btn-primary btn-small">New bundle</a>
+        <h1>Bundles <span class="count">
+            <%= @total %>
+          </span>
+        </h1>
+        <%= link_to "New bundle", admin_new_bundle_path, class: "btn btn-primary" %>
       </div>
-
+      <% if @cleanup_count.positive? %>
+        <div class="notice-copy" role="status">
+          <p>
+            <%= pluralize(@cleanup_count, "file cleanup task") %> pending.<%= " Storage was unavailable; automatic retries are enabled." if @cleanup_failed %>
+          </p>
+          <%= button_to "Retry file cleanup", admin_retry_cleanup_path, class: "btn btn-secondary mt-1" if @cleanup_failed %>
+        </div>
+      <% end %>
+      <%= form_with url: admin_bundles_path, method: :get, class: "library-filters", role: "search" do %>
+        <div class="field-group">
+          <label for="search">Find a bundle</label>
+          <input id="search" name="q" type="search" class="text-input" value="<%= @query %>" placeholder="Title or address">
+        </div>
+        <div class="filter-row">
+          <div class="field-group">
+            <label for="access-filter">Access</label>
+            <%= select_tag :access, options_for_select([["All access", ""], ["Protected", "protected"], ["Public", "public"]], params[:access]), id: "access-filter", class: "text-input" %>
+          </div>
+          <div class="field-group">
+            <label for="status-filter">Status</label>
+            <%= select_tag :status, options_for_select([["All statuses", ""], ["Active", "active"], ["Disabled", "disabled"]], params[:status]), id: "status-filter", class: "text-input" %>
+          </div>
+          <div class="field-group">
+            <label for="sort-filter">Sort</label>
+            <%= select_tag :sort, options_for_select([["Recently updated", "updated"], ["Newest", "newest"], ["Name", "name"], ["Recorded views", "views"]], params[:sort]), id: "sort-filter", class: "text-input" %>
+          </div>
+          <button class="btn btn-secondary" type="submit">Apply</button>
+        </div>
+      <% end %>
       <% if @bundles.any? %>
         <div class="card">
           <ul class="bundle-list">
             <% @bundles.each do |bundle| %>
-              <li>
-                <a href="<%= admin_bundle_path(bundle) %>" class="bundle-item <%= "is-disabled" if bundle.disabled? %>">
+              <li class="library-row">
+                <a href="<%= admin_bundle_path(bundle, from: request.fullpath) %>" class="bundle-item <%= 'is-disabled' if bundle.disabled? %>">
                   <div>
-                    <div class="bundle-name"><%= bundle.title %></div>
-                    <div class="bundle-slug mono"><%= bundle.slug %></div>
+                    <div class="bundle-name">
+                      <%= bundle.title %>
+                    </div>
+                    <div class="bundle-slug mono">
+                      <%= bundle.slug %>
+                    </div>
                     <div class="bundle-meta">
-                      <span class="badge"><%= bundle.presentation_label %></span>
-                      <span class="badge <%= bundle.access_badge_class %>"><%= bundle.access_label %></span>
-                      <span class="badge <%= bundle.status_badge_class %>"><%= bundle.status_label %></span>
+                      <span class="badge">
+                        <%= bundle.presentation_label %>
+                      </span>
+                      <span class="badge <%= bundle.access_badge_class %>">
+                        <%= bundle.access_label %>
+                      </span>
+                      <span class="badge <%= bundle.status_badge_class %>">
+                        <%= bundle.status_label %>
+                      </span>
                     </div>
                   </div>
                   <div class="bundle-stats">
-                    <div class="views"><%= bundle_views_label(bundle) %></div>
-                    <div class="last-viewed"><%= bundle_last_viewed_label(bundle) %></div>
+                    <%= bundle_views_label(bundle) %>
+                    <br>
+                    <%= bundle_last_viewed_label(bundle) %>
                   </div>
                 </a>
+                <% if bundle.active? %>
+                  <div class="library-actions" data-controller="clipboard" data-clipboard-text-value="<%= public_bundle_url_for(bundle) %>">
+                    <button class="btn btn-secondary" type="button" data-action="clipboard#copy" aria-label="Copy link to <%= bundle.title %>">Copy link</button>
+                    <%= link_to "Open", public_bundle_url_for(bundle), class: "btn btn-ghost", target: "_blank", rel: "noreferrer", aria: { label: "Open #{bundle.title}" } %>
+                    <span role="status" class="field-note" data-clipboard-target="status">
+                    </span>
+                  </div>
+                <% end %>
               </li>
             <% end %>
           </ul>
         </div>
       <% else %>
         <div class="card empty-state">
-          <h2>No bundles yet</h2>
-          <p class="text-muted">
-            The admin shell is wired to the database now, but there is no upload flow yet. Run
-            <code>bin/rails db:seed</code>
-            if you want sample bundles to work against while Milestone 3 is in progress.
-          </p>
+          <h2>
+            <%= params.slice(:q, :access, :status).values.any?(&:present?) ? "No matching bundles" : "Share your first file" %>
+          </h2>
+          <p class="text-muted">Upload Markdown, images, recordings, PDFs, or a website packaged as .tar.gz. You’ll get a link to share when it’s ready.</p>
+          <div class="button-row mt-2">
+            <%= link_to "Upload a file", admin_new_bundle_path, class: "btn btn-primary" %>
+            <%= link_to "Set up the CLI", admin_api_tokens_path, class: "btn btn-secondary" %>
+            <%= link_to "Clear filters", admin_bundles_path if params.slice(:q, :access, :status).values.any?(&:present?) %>
+          </div>
         </div>
+      <% end %>
+      <% if @pages > 1 %>
+        <nav class="pagination" aria-label="Bundle pages">
+          <%= link_to "Previous", admin_bundles_path(request.query_parameters.merge(page: @page - 1)), class: "btn btn-secondary" if @page > 1 %>
+          <span>Page <%= @page %> of <%= @pages %>
+          </span>
+          <%= link_to "Next", admin_bundles_path(request.query_parameters.merge(page: @page + 1)), class: "btn btn-secondary" if @page < @pages %>
+        </nav>
       <% end %>
     </div>
   </main>

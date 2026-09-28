@@ -20,15 +20,16 @@ module Public
         return
       end
 
-      session = viewer_session_manager.find(bundle: @bundle)
+      viewer_session = viewer_session_manager.find(bundle: @bundle)
 
-      if session.present?
-        viewer_session_manager.refresh!(bundle: @bundle, viewer_session: session)
+      if viewer_session.present?
+        viewer_session_manager.refresh!(bundle: @bundle, viewer_session:)
       else
         viewer_session_manager.establish!(bundle: @bundle)
       end
 
-      redirect_to public_bundle_url_for(@bundle), notice: "Access granted.", allow_other_host: true
+      destination = SafeReturnPath.call(session.delete(:bundle_return_to))
+      redirect_to destination, notice: "Access granted."
     end
   end
 end

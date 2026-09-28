@@ -21,13 +21,13 @@ module Admin
     end
 
     def bundle_views_label(bundle)
-      pluralize(bundle.total_views_count, "view")
+      pluralize(bundle.total_views_count, "recorded view")
     end
 
     def bundle_unique_viewers_label(bundle)
       return "n/a" if bundle.public_access?
 
-      pluralize(bundle.unique_protected_viewers_count, "viewer")
+      pluralize(bundle.unique_protected_viewers_count, "session")
     end
   end
 end

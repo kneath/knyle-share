@@ -421,7 +421,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_match "audio-display", response.body
-      assert_match "audio-player", response.body
+      assert_select "audio[controls][preload=metadata]"
       assert_match "podcast-clip.share.lvh.me/download", response.body
       assert_equal 1, fake_storage.downloads.size
       assert_equal "inline", fake_storage.downloads.first[:disposition]
@@ -495,12 +495,12 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     get "http://assets-index.share.lvh.me/", params: { prefix: "../private" }
 
     assert_response :not_found
-    assert_match "Directory not found", response.body
+    assert_match "This file is unavailable", response.body
 
     get "http://assets-index.share.lvh.me/", params: { prefix: "missing" }
 
     assert_response :not_found
-    assert_match "Directory not found", response.body
+    assert_match "This file is unavailable", response.body
   end
 
   test "public asset redirects are cacheable and protected asset redirects are not" do
@@ -607,7 +607,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
 
       assert_response :success
       assert_includes response.headers.fetch("Cache-Control"), "private"
-      assert_includes response.headers.fetch("Cache-Control"), "no-cache"
+      assert_includes response.headers.fetch("Cache-Control"), "no-store"
 
       etag = response.headers.fetch("ETag")
 
