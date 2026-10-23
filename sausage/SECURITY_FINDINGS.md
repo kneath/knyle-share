@@ -47,6 +47,17 @@ Relevant code:
 Current disposition:
 - Mitigation implemented: download-style public assets now redirect to short-lived presigned S3 URLs after auth, oversized markdown stops rendering inline, and analytics use deduped unique-viewer tracking plus counter updates instead of locking the bundle row on every view.
 
+### 6. Password Throttling Keyed on Cloudflare Edge IPs
+
+Production runs behind Cloudflare, but the app only trusted private proxy ranges, so `request.ip` and `request.remote_ip` resolved to Cloudflare edge servers. Password throttling was therefore per edge rather than per visitor: attackers spread across edges got more guesses, and unrelated visitors sharing an edge could lock each other out. Rack::Attack was also mounted twice (once by its Railtie, once explicitly), so each attempt counted double.
+
+Relevant code:
+- [config/application.rb](/Users/kneath/code/kneath/knyle-share/config/application.rb)
+- [config/initializers/rack_attack.rb](/Users/kneath/code/kneath/knyle-share/config/initializers/rack_attack.rb)
+
+Current disposition:
+- Mitigation implemented: Cloudflare's published ranges are trusted proxies, throttles key on the resolved client IP, and the duplicate middleware is removed. Requests that bypass Cloudflare can't spoof the client IP because untrusted hops stop the `X-Forwarded-For` walk.
+
 ## Will Not Address
 
 ### 1. Fresh Deployments Are First-Visitor Claimable

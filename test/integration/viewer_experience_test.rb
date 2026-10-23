@@ -69,4 +69,52 @@ class ViewerExperienceTest < ActionDispatch::IntegrationTest
   ensure
     Rack::Attack.cache.store = previous_store
   end
+
+  test "password throttling keys on the client behind Cloudflare, not the edge" do
+    with_rack_attack_store do
+      render_proxy = "10.0.0.5"
+      cloudflare_edge = "172.71.146.140"
+
+      10.times do
+        attempt_password(remote_addr: render_proxy, forwarded_for: "198.51.100.1, #{cloudflare_edge}")
+        assert_not_equal 429, response.status
+      end
+
+      attempt_password(remote_addr: render_proxy, forwarded_for: "198.51.100.2, #{cloudflare_edge}")
+      assert_not_equal 429, response.status
+
+      attempt_password(remote_addr: render_proxy, forwarded_for: "198.51.100.1, #{cloudflare_edge}")
+      assert_equal 429, response.status
+    end
+  end
+
+  test "password throttling ignores spoofed forwarding headers that bypass Cloudflare" do
+    with_rack_attack_store do
+      render_proxy = "10.0.0.5"
+      attacker = "203.0.113.9"
+
+      10.times do |index|
+        attempt_password(remote_addr: render_proxy, forwarded_for: "198.51.100.#{index}, #{attacker}")
+      end
+
+      attempt_password(remote_addr: render_proxy, forwarded_for: "198.51.100.200, #{attacker}")
+      assert_equal 429, response.status
+    end
+  end
+
+  private
+
+  def with_rack_attack_store
+    previous_store = Rack::Attack.cache.store
+    Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+    yield
+  ensure
+    Rack::Attack.cache.store = previous_store
+  end
+
+  def attempt_password(remote_addr:, forwarded_for:)
+    post "/access",
+      params: { password: "wrong-password" },
+      env: { "REMOTE_ADDR" => remote_addr, "HTTP_X_FORWARDED_FOR" => forwarded_for }
+  end
 end
