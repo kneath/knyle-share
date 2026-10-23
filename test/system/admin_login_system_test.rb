@@ -16,6 +16,6 @@ class AdminLoginSystemTest < ApplicationSystemTestCase
 
     assert_current_path "/login"
     assert_text "Admin access only"
-    assert_link "Sign in with GitHub"
+    assert_button "Sign in with GitHub"
   end
 end

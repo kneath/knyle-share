@@ -27,7 +27,7 @@ class AdminBootstrapFlowTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :success
-    assert_select "a.btn.btn-github[href='/auth/github']"
+    assert_select "form[action='/auth/github'][method='post'][data-turbo='false'] button.btn.btn-github"
     assert_match "All 5 checks passed", response.body
   end
 
@@ -89,7 +89,60 @@ class AdminBootstrapFlowTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_bundles_url(host: "admin.lvh.me")
   end
 
+  test "login page starts GitHub sign-in with a CSRF-protected POST" do
+    Installation.current.claim_from_auth!(github_auth(uid: "12345", login: "kneath"))
+
+    with_forgery_protection { get admin_login_url(host: "admin.lvh.me") }
+
+    assert_response :success
+    assert_select "form[action='/auth/github'][method='post'][data-turbo='false']" do
+      assert_select "input[name='authenticity_token']"
+      assert_select "button.btn.btn-github", text: "Sign in with GitHub"
+    end
+    assert_select "a[href='/auth/github']", 0
+  end
+
+  test "GitHub sign-in cannot be started with a GET" do
+    OmniAuth.config.test_mode = false
+
+    get "/auth/github"
+
+    assert_response :not_found
+  end
+
+  test "GitHub sign-in rejects a POST without a valid CSRF token" do
+    OmniAuth.config.test_mode = false
+
+    with_forgery_protection { post "/auth/github" }
+
+    assert_response :redirect
+    assert_match %r{/auth/failure\?message=}, response.location
+    assert_no_match %r{github\.com}, response.location
+  end
+
+  test "GitHub sign-in redirects to GitHub for a POST with a valid CSRF token" do
+    OmniAuth.config.test_mode = false
+    Installation.current.claim_from_auth!(github_auth(uid: "12345", login: "kneath"))
+
+    with_forgery_protection do
+      get admin_login_url(host: "admin.lvh.me")
+      token = css_select("form[action='/auth/github'] input[name='authenticity_token']").first["value"]
+      post "/auth/github", params: { authenticity_token: token }
+    end
+
+    assert_response :redirect
+    assert_match %r{\Ahttps://github\.com/login/oauth/authorize\?}, response.location
+  end
+
   private
+
+  def with_forgery_protection
+    previous = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    yield
+  ensure
+    ActionController::Base.allow_forgery_protection = previous
+  end
 
   def github_auth(uid:, login:)
     OmniAuth::AuthHash.new(
