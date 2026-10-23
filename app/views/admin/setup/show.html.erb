@@ -29,7 +29,7 @@
       <% end %>
 
       <% if @validation_result.passed? %>
-        <a class="btn btn-github btn-full" href="/auth/github">Sign in with GitHub</a>
+        <%= button_to "Sign in with GitHub", "/auth/github", class: "btn btn-github btn-full", form: { data: { turbo: false } } %>
       <% else %>
         <span class="btn btn-github btn-full is-disabled">Sign in with GitHub</span>
       <% end %>

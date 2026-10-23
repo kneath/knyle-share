@@ -1,5 +1,6 @@
-OmniAuth.config.allowed_request_methods = %i[get post]
-OmniAuth.config.silence_get_warning = true
+# POST-only, with omniauth-rails_csrf_protection verifying the token, so other
+# sites can't start a GitHub sign-in with a plain link (CVE-2015-9284).
+OmniAuth.config.allowed_request_methods = %i[post]
 
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider(
