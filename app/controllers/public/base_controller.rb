@@ -4,13 +4,14 @@ module Public
     PUBLIC_DOCUMENT_EDGE_CACHE_TTL_SECONDS = 5.minutes.to_i
     PUBLIC_DOCUMENT_STALE_WHILE_REVALIDATE_SECONDS = 1.minute.to_i
     BUNDLE_PAGE_CACHE_VERSION = 1
+    APPLICATION_ICON_PATHS = %w[/icon.svg /icon.png /favicon.ico /apple-touch-icon.png /apple-touch-icon-precomposed.png].freeze
 
     rescue_from ActiveRecord::RecordNotFound, BundleStorage::MissingObjectError, with: :render_missing
 
     private
 
     def render_missing
-      render "public/bundles/error", status: :not_found
+      render "public/bundles/error", formats: [:html], status: :not_found
     end
 
     def set_bundle
@@ -51,15 +52,34 @@ module Public
       return result if result.allowed?
 
       if allow_password_gate
-        session[:bundle_return_to] = SafeReturnPath.call(request.fullpath) if params[:prefix].present? || params[:page].present?
+        if remember_bundle_destination? && (params[:prefix].present? || params[:page].present?)
+          session[:bundle_return_to] = SafeReturnPath.call(request.fullpath)
+        end
         @access_message = result.message
         render "public/bundles/protected", status: result.message.present? ? :unauthorized : :ok
       else
-        session[:bundle_return_to] = SafeReturnPath.call(request.fullpath) if request.get?
+        session[:bundle_return_to] = SafeReturnPath.call(request.fullpath) if remember_bundle_destination?
         redirect_to public_bundle_url_for(@bundle), alert: result.message.presence || "This bundle is protected.", allow_other_host: true
       end
 
       nil
+    end
+
+    def remember_bundle_destination?
+      return false unless request.get?
+      return false if request.xhr? || missing_application_icon?(request.path)
+
+      destination = request.get_header("HTTP_SEC_FETCH_DEST").to_s
+      return %w[document iframe frame].include?(destination) if destination.present? && destination != "empty"
+
+      # Older browsers and Turbo may omit fetch metadata. Use Accept rather
+      # than the file extension so a direct link to an image still works.
+      request.accepts.include?(Mime[:html])
+    end
+
+    def missing_application_icon?(path)
+      icon_path = URI::DEFAULT_PARSER.unescape(path.split(/[?#]/, 2).first)
+      APPLICATION_ICON_PATHS.include?(icon_path) && !@bundle.assets.exists?(path: icon_path.delete_prefix("/"))
     end
 
     def ensure_bundle_host!(url:)

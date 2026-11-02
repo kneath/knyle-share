@@ -29,6 +29,7 @@ module Public
       end
 
       destination = SafeReturnPath.call(session.delete(:bundle_return_to))
+      destination = "/" if missing_application_icon?(destination)
       redirect_to destination, notice: "Access granted."
     end
   end
