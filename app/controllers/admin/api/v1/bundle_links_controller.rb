@@ -3,6 +3,7 @@ module Admin
     module V1
       class BundleLinksController < BaseController
         before_action :mark_api_token_used!
+        before_action -> { authorize_slug!(params[:slug]) }
 
         def create
           bundle = Bundle.find_by!(slug: params[:slug])

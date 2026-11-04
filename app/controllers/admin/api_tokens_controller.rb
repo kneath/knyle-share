@@ -9,16 +9,16 @@ module Admin
 
     def create
       @api_token = ApiToken.new(api_token_params)
+      @api_token.validate
 
-      if @api_token.label.blank?
+      if @api_token.errors.include?(:label) || @api_token.errors.include?(:slug_prefix)
         @new_api_token = @api_token
         @api_tokens = ordered_api_tokens
-        @api_token.errors.add(:label, "can't be blank")
         render :index, status: :unprocessable_entity
         return
       end
 
-      @api_token, @issued_token = ApiToken.issue!(label: @api_token.label)
+      @api_token, @issued_token = ApiToken.issue!(label: @api_token.label, slug_prefix: @api_token.slug_prefix)
       @new_api_token = ApiToken.new
       @api_tokens = ordered_api_tokens
       flash.now[:notice] = "API token created. Copy it now. You will not be able to see it again."
@@ -45,7 +45,7 @@ module Admin
     end
 
     def api_token_params
-      params.fetch(:api_token, ActionController::Parameters.new).permit(:label)
+      params.fetch(:api_token, ActionController::Parameters.new).permit(:label, :slug_prefix)
     end
   end
 end

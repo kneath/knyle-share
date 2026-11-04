@@ -40,6 +40,16 @@
             <% end %>
           </div>
 
+          <div class="field-group">
+            <%= form.label :slug_prefix, "Slug prefix (optional)" %>
+            <%= form.text_field :slug_prefix, class: "text-input", autocomplete: "off", spellcheck: false, placeholder: "kb-" %>
+            <% if form.object.errors[:slug_prefix].any? %>
+              <p class="field-error"><%= form.object.errors.full_messages_for(:slug_prefix).to_sentence %></p>
+            <% else %>
+              <p class="field-note">Limit this token to bundles whose slug starts with the prefix, like <code>kb-</code>. Leave blank to allow every bundle.</p>
+            <% end %>
+          </div>
+
           <div class="button-row">
             <button class="btn btn-primary" type="submit">Create API token</button>
           </div>
@@ -63,6 +73,11 @@
                   </div>
 
                   <div class="token-meta">
+                    <% if api_token.slug_scoped? %>
+                      <span>Only <code><%= api_token.slug_prefix %>*</code> bundles</span>
+                    <% else %>
+                      <span>All bundles</span>
+                    <% end %>
                     <span>Created <%= time_ago_in_words(api_token.created_at) %> ago</span>
                     <% if api_token.last_used_at.present? %>
                       <span>Last used <%= time_ago_in_words(api_token.last_used_at) %> ago</span>

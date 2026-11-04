@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_28_000200) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_04_000100) do
   create_table "api_tokens", force: :cascade do |t|
     t.string "label", null: false
     t.string "token_digest", null: false
@@ -18,6 +18,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_28_000200) do
     t.datetime "revoked_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug_prefix"
     t.index ["token_digest"], name: "index_api_tokens_on_token_digest", unique: true
   end
 

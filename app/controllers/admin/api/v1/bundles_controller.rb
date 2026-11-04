@@ -3,6 +3,7 @@ module Admin
     module V1
       class BundlesController < BaseController
         before_action :mark_api_token_used!
+        before_action -> { authorize_slug!(params[:slug]) }
 
         def availability
           slug = params[:slug].to_s
