@@ -624,6 +624,26 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "signed link tokens stay out of request logs and redirect breadcrumbs" do
+    token = BundleAccessLink.generate(bundle: @protected_download, expires_in: 1.day)
+    signature = token.split("--").last
+    payloads = []
+    subscriber = ActiveSupport::Notifications.subscribe(/action_controller\z/) do |*, payload|
+      payloads << payload.slice(:params, :path, :location).inspect
+    end
+
+    begin
+      get "http://share.lvh.me/private-brief", params: { access: token }
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    assert_response :redirect
+    assert_includes response.location, signature
+    assert payloads.any? { |payload| payload.include?("[FILTERED]") }
+    assert payloads.none? { |payload| payload.include?(signature) }, payloads.join("\n")
+  end
+
   private
 
   def with_stubbed_storage(contents)
