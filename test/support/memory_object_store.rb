@@ -44,4 +44,8 @@ class MemoryObjectStore
     deleted << key
     objects.delete(key)
   end
+
+  def delete_many(keys:)
+    keys.each { |key| delete(key:) }
+  end
 end

@@ -20,7 +20,7 @@ class StorageCleanup < ApplicationRecord
       .update_all(locked_at: Time.current)
     return unless claimed == 1
 
-    reload.object_keys.each { |key| store.delete(key:) }
+    store.delete_many(keys: reload.object_keys)
     destroy!
   rescue StandardError => error
     update!(locked_at: nil, attempts: attempts + 1, last_error: error.message,

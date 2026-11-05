@@ -625,6 +625,10 @@ class AdminApiTest < ActionDispatch::IntegrationTest
         objects.delete(key)
       end
 
+      def delete_many(keys:)
+        keys.each { |key| delete(key:) }
+      end
+
       def presign_put(key:, content_type:, expires_in: 15.minutes)
         "https://example.com/upload?key=#{CGI.escape(key)}"
       end

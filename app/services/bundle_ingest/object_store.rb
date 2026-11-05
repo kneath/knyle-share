@@ -84,6 +84,19 @@ module BundleIngest
       client.delete_object(bucket:, key:)
     end
 
+    DELETE_BATCH_SIZE = 1_000
+
+    # One DeleteObjects request per 1,000 keys instead of one request each.
+    def delete_many(keys:)
+      keys.each_slice(DELETE_BATCH_SIZE) do |batch|
+        response = client.delete_objects(bucket:, delete: { objects: batch.map { |key| { key: } }, quiet: true })
+        next if response.errors.blank?
+
+        failed = response.errors.map { |error| "#{error.key} (#{error.code})" }
+        raise Aws::S3::Errors::ServiceError.new(nil, "Could not delete #{failed.size} object(s): #{failed.first(5).join(', ')}")
+      end
+    end
+
     private
 
     attr_reader :bucket, :env

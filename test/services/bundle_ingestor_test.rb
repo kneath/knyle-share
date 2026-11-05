@@ -45,8 +45,70 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_includes bundle.assets.first.rendered_html, "<h1"
     assert_includes bundle.assets.first.rendered_html, "Hello"
     assert_equal BundleMarkdownRenderer::VERSION, bundle.assets.first.rendered_html_version
+    assert_empty store.deleted_keys, "cleanup happens after the publish, not during it"
+    perform_storage_cleanups(store)
     assert_equal ["uploads/u1/field-notes.md"], store.deleted_keys
     assert store.objects.key?(bundle.assets.find_by!(path: "field-notes.md").storage_key)
+  end
+
+  test "transfers files concurrently and stops copying after a failure" do
+    files = (1..20).to_h { |index| ["uploads/u-many/site/page-#{index}.html", { body: "<p>#{index}</p>", content_type: "text/html", byte_size: 10 }] }
+    upload = BundleUpload.create!(
+      slug: "many-pages",
+      source_kind: "directory",
+      original_filename: "site",
+      access_mode: "public",
+      replace_existing: false,
+      ingest_key: "uploads/u-many/site",
+      byte_size: 200
+    )
+    store = fake_store(files)
+    active = 0
+    peak = 0
+    lock = Mutex.new
+    original_copy = store.method(:copy)
+    store.define_singleton_method(:copy) do |**options|
+      lock.synchronize { active += 1; peak = [peak, active].max }
+      sleep 0.01
+      original_copy.call(**options)
+    ensure
+      lock.synchronize { active -= 1 }
+    end
+
+    BundleIngestor.new(bundle_upload: upload, object_store: store).call
+
+    assert_operator peak, :>, 1
+    assert_operator peak, :<=, BundleIngestor::DEFAULT_TRANSFER_CONCURRENCY
+    assert_equal 20, Bundle.find_by!(slug: "many-pages").assets.count
+  end
+
+  test "a failed transfer fails the publish and schedules cleanup of copied files" do
+    upload = BundleUpload.create!(
+      slug: "broken-site",
+      source_kind: "directory",
+      original_filename: "site",
+      access_mode: "public",
+      replace_existing: false,
+      ingest_key: "uploads/u-broken/site",
+      byte_size: 20
+    )
+    store = fake_store(
+      "uploads/u-broken/site/index.html" => { body: "<h1>ok</h1>", content_type: "text/html", byte_size: 10 },
+      "uploads/u-broken/site/missing.css" => { body: "x", content_type: "text/css", byte_size: 10 }
+    )
+    original_copy = store.method(:copy)
+    store.define_singleton_method(:copy) do |source_key:, destination_key:|
+      raise IOError, "copy failed" if source_key.end_with?("missing.css")
+
+      original_copy.call(source_key:, destination_key:)
+    end
+
+    error = assert_raises(BundleIngestor::Error) { BundleIngestor.new(bundle_upload: upload, object_store: store).call }
+
+    assert_equal "copy failed", error.message
+    assert_equal "failed", upload.reload.status
+    assert_nil Bundle.find_by(slug: "broken-site")
+    assert(store.objects.keys.none? { |key| key.start_with?("bundles/uploads/#{upload.id}/") })
   end
 
   test "publishes a directory upload as a static site" do
@@ -200,6 +262,7 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_equal "public", replaced_bundle.access_mode
     assert_nil replaced_bundle.password_digest
     assert_equal ["private-brief-v2.pdf"], replaced_bundle.assets.pluck(:path)
+    perform_storage_cleanups(store)
     assert_includes store.deleted_keys, "uploads/u3/private-brief-v2.pdf"
     assert_includes store.deleted_keys, "bundles/#{bundle.id}/1/private-brief.pdf"
     assert store.objects.key?(bundle.assets.find_by!(path: "private-brief-v2.pdf").storage_key)
@@ -298,7 +361,15 @@ class BundleIngestorTest < ActiveSupport::TestCase
         deleted_keys << key
         objects.delete(key)
       end
+
+      def delete_many(keys:)
+        keys.each { |key| delete(key:) }
+      end
     end.new(objects)
+  end
+
+  def perform_storage_cleanups(store)
+    StorageCleanup.find_each { |cleanup| cleanup.perform!(store:) }
   end
 
   def read_tar_gz(archive)

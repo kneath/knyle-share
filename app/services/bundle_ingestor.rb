@@ -6,6 +6,9 @@ class BundleIngestor
   Result = Data.define(:bundle, :bundle_upload, :classification, :replacing_existing)
 
   DEFAULT_PASSWORD_SESSION_TTL = 24.hours.to_i
+  # S3 calls are network-bound, so a few at once publish large bundles many
+  # times faster than one after another.
+  DEFAULT_TRANSFER_CONCURRENCY = 8
 
   def initialize(bundle_upload:, object_store: BundleIngest::ObjectStore.new)
     @bundle_upload = bundle_upload
@@ -58,8 +61,8 @@ class BundleIngestor
       @result = Result.new(bundle:, bundle_upload:, classification:, replacing_existing: existing.present?)
     end
     committed = true
-    # The durable record survives a process exit; try immediately when possible.
-    cleanup&.perform!(store: object_store)
+    # StorageCleanup enqueues itself on commit, and the publishing worker
+    # retries it, so old files don't have to be deleted inside this request.
     @result
   rescue StandardError => error
     unless committed
@@ -142,12 +145,11 @@ class BundleIngestor
   end
 
   def copy_and_build_assets!(classification:, staged_entries:, copied_keys:)
-    staged_entries.map do |entry|
-      storage_key = "#{bundle_upload.publish_prefix}/#{entry.path}"
+    planned = staged_entries.map { |entry| [entry, "#{bundle_upload.publish_prefix}/#{entry.path}"] }
+    copied_keys.concat(planned.map(&:last))
+    transfer_entries(planned)
 
-      copied_keys << storage_key
-      transfer_entry(entry:, destination_key: storage_key)
-
+    planned.map do |entry, storage_key|
       BundleAsset.new(
         path: entry.path,
         storage_key:,
@@ -158,6 +160,36 @@ class BundleIngestor
         rendered_html_version: rendered_markdown_version_for(entry:, classification:)
       )
     end
+  end
+
+  # Runs transfers on a small thread pool. The first failure stops the rest
+  # and is re-raised, so the caller's cleanup removes whatever was copied.
+  def transfer_entries(planned)
+    queue = Queue.new
+    planned.each { |item| queue << item }
+    queue.close
+    failures = Queue.new
+
+    threads = Array.new([transfer_concurrency, planned.size].min) do
+      Thread.new do
+        while (item = queue.pop) && failures.empty?
+          entry, destination_key = item
+          transfer_entry(entry:, destination_key:)
+        end
+      rescue StandardError => error
+        failures << error
+      end
+    end
+    # Let the workers autoload in development while this thread waits.
+    ActiveSupport::Dependencies.interlock.permit_concurrent_loads { threads.each(&:join) }
+
+    raise failures.pop unless failures.empty?
+  end
+
+  def transfer_concurrency
+    Integer(ENV.fetch("PUBLISH_TRANSFER_CONCURRENCY", DEFAULT_TRANSFER_CONCURRENCY)).clamp(1, 32)
+  rescue ArgumentError, TypeError
+    DEFAULT_TRANSFER_CONCURRENCY
   end
 
   def protected_password_digest
