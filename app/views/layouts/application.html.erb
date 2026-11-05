@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <%= csrf_meta_tags %>
+    <%# No csrf_meta_tags: generating the token writes a session cookie, and a
+        Set-Cookie stops shared caches from storing public pages. The one public
+        form (the password gate) carries its own token. %>
     <%= csp_meta_tag %>
 
     <% if @bundle&.public_access? && @bundle.active? %>

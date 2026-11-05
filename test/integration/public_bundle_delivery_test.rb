@@ -624,6 +624,35 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public pages don't set a session cookie, so shared caches can store them" do
+    with_forgery_protection do
+      with_stubbed_storage("field-notes.md" => "# Heading\n\nHello public bundle.") do
+        get "http://field-notes.share.lvh.me/"
+      end
+    end
+
+    assert_response :success
+    assert_includes response.headers["Cache-Control"], "public"
+    assert_nil response.headers["Set-Cookie"]
+    assert_no_match(/csrf-token/, response.body)
+  end
+
+  test "the password gate still works with forgery protection on" do
+    with_forgery_protection do
+      with_stubbed_storage("private-brief.pdf" => "%PDF-1.7 mock") do
+        get "http://private-brief.share.lvh.me/"
+        assert_response :success
+        token = css_select('form input[name="authenticity_token"]').first&.attribute("value")&.value
+        assert token.present?
+
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern", authenticity_token: token }
+        assert_redirected_to "http://private-brief.share.lvh.me/"
+        follow_redirect!
+        assert_match "Download file", response.body
+      end
+    end
+  end
+
   test "app-rendered pages carry a content security policy with a script nonce" do
     with_stubbed_storage("field-notes.md" => "# Heading\n\nHello public bundle.") do
       get "http://field-notes.share.lvh.me/"
@@ -752,5 +781,13 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     yield
   ensure
     Rails.configuration.x.host_cookie_prefix = previous
+  end
+
+  def with_forgery_protection
+    previous = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    yield
+  ensure
+    ActionController::Base.allow_forgery_protection = previous
   end
 end
