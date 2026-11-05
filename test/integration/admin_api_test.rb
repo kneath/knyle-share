@@ -286,37 +286,190 @@ class AdminApiTest < ActionDispatch::IntegrationTest
     assert_empty BundleUpload.all
   end
 
-  test "slug-scoped tokens cannot finalize or process uploads outside their prefix" do
+  test "slug-scoped tokens get the same 404 for uploads outside their prefix as for missing ones" do
     kyles_upload = create_upload!(slug: "field-notes")
     other_bot_upload = create_upload!(slug: "kb-weekly-report")
     other_bot_headers = { "Authorization" => "Bearer #{ApiToken.issue!(label: "Other bot", slug_prefix: "ob-").last}" }
+    missing_id = BundleUpload.maximum(:id) + 1000
 
-    [ [ kyles_upload, scoped_headers ], [ other_bot_upload, other_bot_headers ] ].each do |upload, headers|
-      put "/api/v1/uploads/#{upload.id}", params: { upload: { byte_size: 10 } }, headers: headers
-      assert_forbidden_for_prefix
+    [ [ kyles_upload.id, scoped_headers ], [ other_bot_upload.id, other_bot_headers ], [ missing_id, scoped_headers ] ].each do |id, headers|
+      put "/api/v1/uploads/#{id}", params: { upload: { byte_size: 10 } }, headers: headers
+      assert_not_found_for_scope("Upload not found")
 
-      post "/api/v1/uploads/#{upload.id}/process", headers: headers
-      assert_forbidden_for_prefix
+      post "/api/v1/uploads/#{id}/process", headers: headers
+      assert_not_found_for_scope("Upload not found")
+    end
 
+    [ kyles_upload, other_bot_upload ].each do |upload|
       upload.reload
       assert_equal "pending", upload.status
       assert_equal 0, upload.byte_size
     end
-
     assert_empty Bundle.all
   end
 
-  test "slug-scoped tokens cannot read or link bundles outside their prefix" do
+  test "slug-scoped tokens get the same 404 for bundles outside their prefix as for missing ones" do
     create_bundle!(slug: "private-brief", access_mode: "protected", password: "river maple lantern")
 
-    get "/api/v1/bundles/private-brief", headers: scoped_headers
-    assert_forbidden_for_prefix
+    [ "private-brief", "no-such-bundle", "kb-no-such-bundle" ].each do |slug|
+      get "/api/v1/bundles/#{slug}", headers: scoped_headers
+      assert_not_found_for_scope("Bundle not found")
 
-    get "/api/v1/bundles/no-such-bundle", headers: scoped_headers
-    assert_forbidden_for_prefix
+      post "/api/v1/bundles/#{slug}/links", params: { expires_in: "1_week" }, headers: scoped_headers
+      assert_not_found_for_scope("Bundle not found")
+    end
+  end
 
-    post "/api/v1/bundles/private-brief/links", params: { expires_in: "1_week" }, headers: scoped_headers
+  test "slug-scoped tokens can read and link protected bundles inside their prefix" do
+    create_bundle!(slug: "kb-private-brief", access_mode: "protected", password: "river maple lantern")
+
+    get "/api/v1/bundles/kb-private-brief", headers: scoped_headers
+    assert_response :success
+    assert_equal "kb-private-brief", JSON.parse(response.body)["slug"]
+
+    post "/api/v1/bundles/kb-private-brief/links", params: { expires_in: "1_week" }, headers: scoped_headers
+    assert_response :created
+    assert_match %r{\Ahttps?://kb-private-brief\.share\.lvh\.me/\?access=}, JSON.parse(response.body)["url"]
+  end
+
+  test "slug-scoped tokens check availability for in-prefix slugs, existing or not" do
+    create_bundle!(slug: "kb-weekly-report")
+
+    get "/api/v1/bundles/availability", params: { slug: "kb-weekly-report" }, headers: scoped_headers
+    assert_response :success
+    assert_equal({ "available" => false, "exists" => true }, JSON.parse(response.body).slice("available", "exists"))
+
+    get "/api/v1/bundles/availability", params: { slug: "kb-new-report" }, headers: scoped_headers
+    assert_response :success
+    assert_equal({ "available" => true, "exists" => false }, JSON.parse(response.body).slice("available", "exists"))
+  end
+
+  test "slug-scoped tokens can replace bundles inside their prefix" do
+    create_bundle!(slug: "kb-weekly-report")
+
+    BundleIngest::ObjectStore.stub :new, fake_object_store({}) do
+      post "/api/v1/uploads", params: { upload: upload_attributes(slug: "kb-weekly-report", replace_existing: true) }, headers: scoped_headers
+    end
+
+    assert_response :created
+    assert_equal true, BundleUpload.find(JSON.parse(response.body)["id"]).replace_existing
+  end
+
+  test "slug-scoped tokens cannot create uploads for missing slugs outside their prefix" do
+    post "/api/v1/uploads", params: { upload: upload_attributes(slug: "unused-slug") }, headers: scoped_headers
+
     assert_forbidden_for_prefix
+    assert_empty BundleUpload.all
+  end
+
+  test "finalizing an upload ignores slug, access mode, and other create-time fields" do
+    upload = create_upload!(slug: "kb-weekly-report")
+
+    [ scoped_headers, @headers ].each do |headers|
+      upload.update!(status: "pending", byte_size: 0)
+
+      put "/api/v1/uploads/#{upload.id}",
+        params: {
+          upload: {
+            byte_size: 10,
+            slug: "field-notes",
+            access_mode: "protected",
+            password: "river maple lantern",
+            replace_existing: true,
+            source_kind: "directory",
+            original_filename: "other.md",
+            ingest_key: "uploads/other/other.md",
+            status: "ready"
+          },
+          slug: "field-notes",
+          access_mode: "protected"
+        },
+        headers: headers
+
+      assert_response :success
+      upload.reload
+      assert_equal "kb-weekly-report", upload.slug
+      assert_equal "public", upload.access_mode
+      assert_nil upload.password_digest
+      assert_equal false, upload.replace_existing
+      assert_equal "file", upload.source_kind
+      assert_equal "kb-weekly-report.md", upload.original_filename
+      assert_equal "uploads/kb-weekly-report/kb-weekly-report.md", upload.ingest_key
+      assert_equal "staged", upload.status
+      assert_equal 10, upload.byte_size
+    end
+  end
+
+  test "processing an upload ignores slug and access mode params" do
+    upload = create_upload!(slug: "kb-weekly-report")
+    markdown = "# Weekly Report"
+    upload.update!(byte_size: markdown.bytesize)
+    upload.mark_staged!
+    fake_store = fake_object_store(
+      upload.ingest_key => { body: markdown, content_type: "text/markdown", byte_size: markdown.bytesize }
+    )
+
+    BundleIngest::ObjectStore.stub :new, fake_store do
+      post "/api/v1/uploads/#{upload.id}/process",
+        params: { slug: "field-notes", access_mode: "protected", upload: { slug: "field-notes", access_mode: "protected" } },
+        headers: scoped_headers
+    end
+
+    assert_response :created
+    assert_equal [ "kb-weekly-report" ], Bundle.pluck(:slug)
+    assert_equal "public", Bundle.first.access_mode
+  end
+
+  test "api tokens cannot reach the admin session endpoints that list, change, or delete bundles" do
+    bundle = create_bundle!(slug: "kb-weekly-report")
+    upload = create_upload!(slug: "kb-weekly-report")
+
+    [ scoped_headers, @headers ].each do |headers|
+      headers = headers.merge("Accept" => "application/json")
+
+      get "/bundles", headers: headers
+      assert_response :unauthorized
+      get "/bundles/#{bundle.id}", headers: headers
+      assert_response :unauthorized
+      patch "/bundles/#{bundle.id}/status", params: { status: "disabled" }, headers: headers
+      assert_response :unauthorized
+      patch "/bundles/#{bundle.id}/password", params: { password: "new password here" }, headers: headers
+      assert_response :unauthorized
+      post "/bundles/#{bundle.id}/link", headers: headers
+      assert_response :unauthorized
+      post "/bundles/#{bundle.id}/revoke-links", headers: headers
+      assert_response :unauthorized
+      delete "/bundles/#{bundle.id}", headers: headers
+      assert_response :unauthorized
+      delete "/uploads/#{upload.id}", headers: headers
+      assert_response :unauthorized
+      get "/api-tokens", headers: headers
+      assert_response :unauthorized
+    end
+
+    assert Bundle.exists?(bundle.id)
+    assert BundleUpload.exists?(upload.id)
+    assert_equal "active", bundle.reload.status
+  end
+
+  test "token endpoint reports the slug prefix for scoped and unscoped tokens" do
+    get "/api/v1/token", headers: scoped_headers
+    assert_response :success
+    assert_equal({ "slug_prefix" => "kb-" }, JSON.parse(response.body))
+
+    get "/api/v1/token", headers: @headers
+    assert_response :success
+    assert_equal({ "slug_prefix" => nil }, JSON.parse(response.body))
+  end
+
+  test "tokens without a slug prefix keep the default not-found errors" do
+    get "/api/v1/bundles/no-such-bundle", headers: @headers
+    assert_response :not_found
+    assert_match(/\ACouldn't find Bundle/, JSON.parse(response.body)["error"])
+
+    put "/api/v1/uploads/999999", params: { upload: { byte_size: 10 } }, headers: @headers
+    assert_response :not_found
+    assert_equal "Couldn't find BundleUpload with 'id'=\"999999\"", JSON.parse(response.body)["error"]
   end
 
   test "tokens without a slug prefix can act on any bundle, including prefixed ones" do
@@ -333,6 +486,17 @@ class AdminApiTest < ActionDispatch::IntegrationTest
 
     put "/api/v1/uploads/#{create_upload!(slug: "kb-weekly-report").id}", params: { upload: { byte_size: 10 } }, headers: @headers
     assert_response :success
+
+    create_bundle!(slug: "field-notes", access_mode: "protected", password: "river maple lantern")
+
+    get "/api/v1/bundles/field-notes", headers: @headers
+    assert_response :success
+
+    post "/api/v1/bundles/field-notes/links", params: { expires_in: "1_day" }, headers: @headers
+    assert_response :created
+
+    put "/api/v1/uploads/#{create_upload!(slug: "field-notes").id}", params: { upload: { byte_size: 10 } }, headers: @headers
+    assert_response :success
   end
 
   private
@@ -345,6 +509,22 @@ class AdminApiTest < ActionDispatch::IntegrationTest
     assert_response :forbidden
     assert_equal "application/json", response.media_type
     assert_match(/can only act on bundles whose slug starts with "[a-z-]+"/, JSON.parse(response.body).fetch("error"))
+  end
+
+  def assert_not_found_for_scope(message)
+    assert_response :not_found
+    assert_equal "application/json", response.media_type
+    assert_equal({ "error" => message }, JSON.parse(response.body))
+  end
+
+  def upload_attributes(slug:, replace_existing: false)
+    {
+      slug:,
+      source_kind: "file",
+      original_filename: "#{slug}.md",
+      access_mode: "public",
+      replace_existing:
+    }
   end
 
   def create_bundle!(slug:, access_mode: "public", password: nil)

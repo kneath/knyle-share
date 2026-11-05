@@ -3,7 +3,7 @@ module Admin
     module V1
       class BundlesController < BaseController
         before_action :mark_api_token_used!
-        before_action -> { authorize_slug!(params[:slug]) }
+        before_action -> { authorize_slug!(params[:slug]) }, only: :availability
 
         def availability
           slug = params[:slug].to_s
@@ -22,7 +22,7 @@ module Admin
         end
 
         def show
-          bundle = Bundle.find_by!(slug: params[:slug])
+          bundle = find_bundle!(params[:slug])
 
           render json: serialize_bundle(bundle)
         end

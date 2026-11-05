@@ -263,7 +263,21 @@ Create a token from the admin UI:
 
 If you lose the plaintext token, revoke it and create a new one. Only the digest is saved in the database.
 
-A token with a slug prefix can only act on bundles whose slug starts with that prefix. Use one for bots and other automation, so a leaked token can't touch the rest of your bundles. Every request that names another slug (availability checks, uploads, replacements, metadata, and signed links) returns `403 Forbidden` with a JSON error, and an upload can only be finalized or processed by a token whose prefix matches the upload's slug. Prefixes use lowercase letters, numbers, and hyphens, and must end in a hyphen. Tokens without a prefix can act on every bundle.
+A token with a slug prefix can only act on bundles and uploads whose slug starts with that prefix. Use one for bots and other automation, so a leaked token can't touch the rest of your bundles. Prefixes use lowercase letters, numbers, and hyphens, and must end in a hyphen. Tokens without a prefix can act on every bundle.
+
+A scoped token can:
+
+- Check availability for a slug inside its prefix (`GET /api/v1/bundles/availability`), including whether a bundle already exists there.
+- Create an upload for a slug inside its prefix, including one that replaces an existing bundle (`POST /api/v1/uploads`).
+- Finalize and process any upload whose slug is inside its prefix, whichever token created it (`PUT /api/v1/uploads/:id`, `POST /api/v1/uploads/:id/process`). Finalizing only accepts `byte_size`. The slug, access mode, password, and the other create-time fields can't change after the create-time prefix check.
+- Read metadata for a bundle inside its prefix (`GET /api/v1/bundles/:slug`) and create signed links for a protected one (`POST /api/v1/bundles/:slug/links`).
+- Verify itself with `GET /api/v1/token`.
+
+A scoped token can't:
+
+- Check availability for, or create an upload for, a slug outside its prefix. These requests return `403 Forbidden` with a JSON error, whether or not that slug exists.
+- Read, link, finalize, or process anything outside its prefix. These requests return the same `404 Not Found` (`Bundle not found` or `Upload not found`) as a bundle or upload that doesn't exist, so it can't tell which slugs or upload ids exist outside its prefix.
+- List, disable, delete, re-password, or revoke links for bundles, or manage API tokens. Those actions exist only in the admin interface, which requires a signed-in GitHub session and ignores API tokens. The API has no list or delete endpoints for any token.
 
 `GET /api/v1/token` verifies a bearer token and returns its `slug_prefix` (`null` for unrestricted tokens) without looking up a bundle. The CLI uses this endpoint during login, so scoped tokens can sign in too. Update the CLI before logging in with a scoped token.
 
