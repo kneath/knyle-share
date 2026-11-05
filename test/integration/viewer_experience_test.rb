@@ -102,6 +102,47 @@ class ViewerExperienceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "password throttling groups IPv6 clients by /64" do
+    with_rack_attack_store do
+      render_proxy = "10.0.0.5"
+
+      10.times do |index|
+        attempt_password(remote_addr: render_proxy, forwarded_for: "2001:db8:1:2::#{index + 1}")
+        assert_not_equal 429, response.status
+      end
+
+      attempt_password(remote_addr: render_proxy, forwarded_for: "2001:db8:1:2:ffff::1")
+      assert_equal 429, response.status
+
+      attempt_password(remote_addr: render_proxy, forwarded_for: "2001:db8:1:3::1")
+      assert_not_equal 429, response.status
+    end
+  end
+
+  test "password throttling caps attempts per bundle across many addresses" do
+    with_rack_attack_store do
+      app = Rack::Attack.new(->(_) { [200, {}, ["ok"]] })
+      attempt = lambda do |url, index|
+        app.call(Rack::MockRequest.env_for(url, method: "POST", "REMOTE_ADDR" => "192.0.2.#{index % 250 + 1}"))
+      end
+
+      50.times do |index|
+        status, = attempt.call("http://viewer-experience.share.lvh.me/access", index)
+        assert_equal 200, status
+      end
+
+      status, headers, = attempt.call("http://share.lvh.me/viewer-experience/access", 200)
+      assert_equal 429, status
+      assert_equal "3600", headers["Retry-After"]
+
+      status, = attempt.call("http://other-bundle.share.lvh.me/access", 201)
+      assert_equal 200, status
+
+      status, = attempt.call("http://viewer-experience.share.lvh.me/", 202)
+      assert_equal 200, status
+    end
+  end
+
   private
 
   def with_rack_attack_store
