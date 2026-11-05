@@ -515,6 +515,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_includes response.headers.fetch("Cache-Control"), "public"
       assert_includes response.headers.fetch("Cache-Control"), "max-age=300"
       assert_equal "public, max-age=31536000, immutable", fake_storage.downloads.last.fetch(:response_cache_control)
+      assert_equal true, fake_storage.downloads.last.fetch(:stable)
 
       post "http://private-review.share.lvh.me/access", params: { password: "river maple lantern" }
 
@@ -524,6 +525,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_equal "private, no-store", response.headers["Cache-Control"]
       assert_equal "no-cache", response.headers["Pragma"]
       assert_equal "private, no-store", fake_storage.downloads.last.fetch(:response_cache_control)
+      assert_equal false, fake_storage.downloads.last.fetch(:stable)
     end
   end
 
@@ -743,12 +745,13 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
         raise BundleStorage::MissingObjectError, asset.path
       end
 
-      def download_url(asset, disposition:, expires_in: 5.minutes, response_cache_control: nil)
+      def download_url(asset, disposition:, expires_in: 5.minutes, response_cache_control: nil, stable: false, **)
         downloads << {
           path: asset.path,
           disposition:,
           expires_in: expires_in.to_i,
-          response_cache_control:
+          response_cache_control:,
+          stable:
         }
         "https://downloads.example.test/#{asset.path}?disposition=#{disposition}"
       end

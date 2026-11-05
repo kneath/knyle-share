@@ -312,7 +312,8 @@ module Public
         asset,
         disposition: "inline",
         expires_in: storage.public_asset_redirect_ttl_seconds,
-        response_cache_control: bundle_asset_response_cache_control
+        response_cache_control: bundle_asset_response_cache_control,
+        stable: @bundle.public_access?
       )
     end
 
