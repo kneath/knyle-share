@@ -1,126 +1,127 @@
 <% content_for :title, "#{@bundle.title} · Knyle Share" %>
-<div class="page">
-  <%= render "admin/shared/header" %>
-  <main>
-    <div class="container">
-      <div class="breadcrumb">
-        <%= link_to "Bundles", @library_path %> / <%= @bundle.slug %>
-      </div>
-      <div class="page-title">
-        <h1>
-          <%= @bundle.title %>
-        </h1>
-        <span class="badge">
-          <%= @bundle.presentation_label %>
-        </span>
-      </div>
-      <section class="detail-section share-panel">
-        <div class="bundle-meta">
-          <span class="badge <%= @bundle.access_badge_class %>">
-            <%= @bundle.access_label %>
-          </span>
-          <span class="badge <%= @bundle.status_badge_class %>">
-            <%= @bundle.status_label %>
-          </span>
-        </div>
-        <% if @bundle.active? %>
-          <%= render "shared/copy_field", id: "bundle-address", label: "Share address", value: public_bundle_url_for(@bundle), button: "Copy link" %>
-          <div class="button-row mt-2">
-            <%= link_to "Open preview", public_bundle_url_for(@bundle), target: "_blank", rel: "noreferrer", class: "btn btn-secondary" %>
-            <%= link_to "Generate expiring link", admin_bundle_link_path(@bundle), class: "btn btn-primary" if @bundle.protected_access? %>
-          </div>
-          <p class="field-note mt-1">
-            <%= @bundle.protected_access? ? "This address requires the password. An expiring link grants access without a password." : "Anyone with this address can view your files." %>
-          </p>
-        <% else %>
-          <h2 class="mt-2">Sharing is paused</h2>
-          <p class="text-muted">Enable this bundle to make its address available again.</p>
-        <% end %>
-        <% if @generated_password.present? %>
-          <div class="generated-secret">
-            <%= render "shared/copy_field", id: "new-password", label: "New password — save it now", value: @generated_password, button: "Copy password" %>
-            <p class="field-note">Shown only once. Previous expiring links and password sessions no longer work.</p>
-          </div>
-        <% end %>
-      </section>
-      <section class="detail-section">
-        <h2>Manage files</h2>
-        <p class="text-muted mt-1">
-          <%= pluralize(@bundle.asset_count, "file") %> · <%= bundle_size_label(@bundle) %> · <%= @bundle.source_label %>
-        </p>
-        <div class="button-row mt-2">
-          <%= link_to "Replace files", admin_new_bundle_path(replace: @bundle.slug), class: "btn btn-secondary" %>
-          <%= button_to(@bundle.active? ? "Disable bundle" : "Enable bundle", admin_bundle_status_path(@bundle), method: :patch, class: "btn btn-secondary") %>
-        </div>
-        <p class="field-note mt-1">Replacing keeps the address and title, and expires prior access grants. Last replaced: <%= bundle_last_replaced_label(@bundle) %>.</p>
-      </section>
-      <section class="detail-section">
-        <h2>Edit details</h2>
-        <%= form_with url: admin_bundle_path(@bundle), method: :patch, class: "stack-form mt-2", data: { controller: "confirm", action: "submit->confirm#submit", confirm_field_value: "#access_mode", confirm_initial_value: @bundle.access_mode, confirm_message_value: "Save these details? Changing access expires all previous links and sessions. Public files can be viewed by anyone with the address; cached public copies may remain available." } do |form| %>
-          <div class="field-group">
-            <%= form.label :title, "Title" %>
-            <%= form.text_field :title, name: "bundle[title]", value: @bundle.title, required: true, maxlength: 200, class: "text-input" %>
-          </div>
-          <div class="field-group">
-            <%= form.label :description, "Description" %>
-            <%= form.text_area :description, name: "bundle[description]", value: @bundle.description, maxlength: 1000, rows: 3, class: "text-input" %>
-          </div>
-          <div class="field-group">
-            <%= form.label :access_mode, "Access" %>
-            <%= form.select :access_mode, [["Protected", "protected"], ["Public", "public"]], { selected: @bundle.access_mode }, name: "bundle[access_mode]", class: "text-input" %>
-            <p class="field-note">Switching to Protected generates a new password. Changing access expires existing sessions and links. The address stays the same.</p>
-          </div>
-          <button class="btn btn-primary" type="submit">Save details</button>
-        <% end %>
-      </section>
-      <% if @bundle.protected_access? %>
-        <section class="detail-section">
-          <h2>Password &amp; access</h2>
-          <p class="text-muted mt-1">A new password expires previous links and password sessions. Password access lasts <%= distance_of_time_in_words(0, @bundle.password_session_ttl_seconds) %>.</p>
-          <%= form_with url: admin_bundle_password_path(@bundle), method: :patch, class: "stack-form mt-2" do |form| %>
-            <div class="field-group">
-              <%= form.label :password, "Custom password" %>
-              <%= form.text_field :password, name: "bundle[password]", class: "text-input", autocomplete: "new-password", spellcheck: false %>
-            </div>
-            <div class="button-row">
-              <button class="btn btn-secondary" type="submit" name="password_strategy" value="generated">Generate new password</button>
-              <button class="btn btn-secondary" type="submit" name="password_strategy" value="custom">Save custom password</button>
-            </div>
-          <% end %>
-          <%= button_to "Revoke all links and sessions", admin_revoke_bundle_links_path(@bundle), class: "btn btn-secondary mt-2", form: { data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Revoke all links and sessions for #{@bundle.title}? The password stays the same." } } %>
-        </section>
-      <% end %>
-      <section class="detail-section">
-        <h2>Activity</h2>
-        <div class="stat-row mt-2">
-          <div>
-            <div class="stat-label">Recorded views</div>
-            <div class="stat-value">
-              <%= @bundle.total_views_count %>
-            </div>
-          </div>
-          <div>
-            <div class="stat-label">Authorized sessions</div>
-            <div class="stat-value">
-              <%= @bundle.public_access? ? 'Not tracked' : @bundle.unique_protected_viewers_count %>
-            </div>
-          </div>
-          <div>
-            <div class="stat-label">Last viewed</div>
-            <%= bundle_last_viewed_label(@bundle) %>
-          </div>
-          <div>
-            <div class="stat-label">Created</div>
-            <%= bundle_created_label(@bundle) %>
-          </div>
-        </div>
-        <p class="field-note">Approximate counts: cached visits may not be recorded. Authorized sessions are browser sessions, not unique people.</p>
-      </section>
-      <section class="danger-zone">
-        <h2>Delete bundle</h2>
-        <p>New requests stop once deleted. Stored files are queued for removal, with retries if storage is unavailable. Cached public copies and already-issued downloads may remain available briefly. Deletion cannot be undone.</p>
-        <%= button_to "Delete bundle", admin_bundle_path(@bundle), method: :delete, class: "btn btn-danger", form: { data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Permanently delete #{@bundle.title} (#{@bundle.slug}) and its files? This cannot be undone." } } %>
-      </section>
-    </div>
-  </main>
+<div class="breadcrumb">
+  <%= link_to "Bundles", @library_path %> / <span class="mono"><%= @bundle.slug %></span>
 </div>
+<div class="page-title">
+  <h1><%= @bundle.title %></h1>
+  <%= link_to "Open", public_bundle_url_for(@bundle), target: "_blank", rel: "noreferrer", class: "btn btn-secondary" if @bundle.active? %>
+</div>
+<div class="meta-line">
+  <%= bundle_status_tag(@bundle) %>
+  <span><%= @bundle.presentation_label %></span>
+  <span><%= pluralize(@bundle.asset_count, "file") %> · <%= bundle_size_label(@bundle) %></span>
+  <%= tag.span(@bundle.source_label) unless @bundle.source_label == @bundle.presentation_label %>
+</div>
+<div class="stats">
+  <div>
+    <div class="stat-label">Recorded views</div>
+    <div class="stat-value"><%= @bundle.total_views_count %></div>
+  </div>
+  <div>
+    <div class="stat-label">Authorized sessions</div>
+    <div class="stat-value"><%= @bundle.public_access? ? "Not tracked" : @bundle.unique_protected_viewers_count %></div>
+  </div>
+  <div>
+    <div class="stat-label">Last viewed</div>
+    <div class="stat-value"><%= bundle_last_viewed_label(@bundle) %></div>
+  </div>
+  <div>
+    <div class="stat-label">Created</div>
+    <div class="stat-value"><%= bundle_created_label(@bundle) %></div>
+  </div>
+</div>
+<section class="panel share-panel">
+  <div class="panel-header">
+    <h2>Share</h2>
+  </div>
+  <div class="panel-body">
+    <% if @generated_password.present? %>
+      <div class="generated-secret">
+        <%= render "shared/copy_field", id: "new-password", label: "New password — save it now", value: @generated_password, button: "Copy password" %>
+        <p class="field-note">Shown only once. Previous expiring links and password sessions no longer work.</p>
+      </div>
+    <% end %>
+    <% if @bundle.active? %>
+      <%= render "shared/copy_field", id: "bundle-address", label: "Share address", value: public_bundle_url_for(@bundle), button: "Copy link" %>
+      <p class="field-note">
+        <%= @bundle.protected_access? ? "This address requires the password. An expiring link grants access without a password." : "Anyone with this address can view your files." %>
+      </p>
+      <% if @bundle.protected_access? %>
+        <div class="button-row">
+          <%= link_to "Generate expiring link", admin_bundle_link_path(@bundle), class: "btn btn-secondary" %>
+        </div>
+      <% end %>
+    <% else %>
+      <p><strong>Sharing is paused.</strong> Enable this bundle to make its address available again.</p>
+    <% end %>
+  </div>
+</section>
+<section class="panel">
+  <div class="panel-header">
+    <h2>Details</h2>
+  </div>
+  <div class="panel-body">
+    <%= form_with url: admin_bundle_path(@bundle), method: :patch, class: "stack-form", data: { controller: "confirm", action: "submit->confirm#submit", confirm_field_value: "#access_mode", confirm_initial_value: @bundle.access_mode, confirm_message_value: "Save these details? Changing access expires all previous links and sessions. Public files can be viewed by anyone with the address; cached public copies may remain available." } do |form| %>
+      <div class="field-group">
+        <%= form.label :title, "Title" %>
+        <%= form.text_field :title, name: "bundle[title]", value: @bundle.title, required: true, maxlength: 200, class: "text-input" %>
+      </div>
+      <div class="field-group">
+        <%= form.label :description, "Description" %>
+        <%= form.text_area :description, name: "bundle[description]", value: @bundle.description, maxlength: 1000, rows: 3, class: "text-input" %>
+      </div>
+      <div class="field-group">
+        <%= form.label :access_mode, "Access" %>
+        <%= form.select :access_mode, [["Protected", "protected"], ["Public", "public"]], { selected: @bundle.access_mode }, name: "bundle[access_mode]", class: "text-input" %>
+        <p class="field-note">Switching to Protected generates a new password. Changing access expires existing sessions and links. The address stays the same.</p>
+      </div>
+      <div class="button-row">
+        <button class="btn btn-primary" type="submit">Save details</button>
+      </div>
+    <% end %>
+  </div>
+</section>
+<% if @bundle.protected_access? %>
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Password and access</h2>
+    </div>
+    <div class="panel-body">
+      <p>A new password expires previous links and password sessions. Password access lasts <%= distance_of_time_in_words(0, @bundle.password_session_ttl_seconds) %>.</p>
+      <%= form_with url: admin_bundle_password_path(@bundle), method: :patch, class: "stack-form" do |form| %>
+        <div class="field-group">
+          <%= form.label :password, "Custom password" %>
+          <%= form.text_field :password, name: "bundle[password]", class: "text-input", autocomplete: "new-password", spellcheck: false %>
+        </div>
+        <div class="button-row">
+          <button class="btn btn-secondary" type="submit" name="password_strategy" value="custom">Save custom password</button>
+          <button class="btn btn-secondary" type="submit" name="password_strategy" value="generated">Generate new password</button>
+        </div>
+      <% end %>
+      <%= button_to "Revoke all links and sessions", admin_revoke_bundle_links_path(@bundle), class: "btn btn-ghost", form: { data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Revoke all links and sessions for #{@bundle.title}? The password stays the same." } } %>
+    </div>
+  </section>
+<% end %>
+<section class="panel">
+  <div class="panel-header">
+    <h2>Files</h2>
+    <span class="field-note">Last replaced: <%= bundle_last_replaced_label(@bundle) %></span>
+  </div>
+  <div class="panel-body">
+    <p>Replacing keeps the address and title, and expires prior access grants.</p>
+    <div class="button-row">
+      <%= link_to "Replace files", admin_new_bundle_path(replace: @bundle.slug), class: "btn btn-secondary" %>
+      <%= button_to(@bundle.active? ? "Disable bundle" : "Enable bundle", admin_bundle_status_path(@bundle), method: :patch, class: "btn btn-secondary") %>
+    </div>
+  </div>
+</section>
+<section class="panel panel-danger">
+  <div class="panel-header">
+    <h2>Delete bundle</h2>
+  </div>
+  <div class="panel-body">
+    <p>New requests stop once deleted. Stored files are queued for removal, with retries if storage is unavailable. Cached public copies and already-issued downloads may remain available briefly. Deletion cannot be undone.</p>
+    <%= button_to "Delete bundle", admin_bundle_path(@bundle), method: :delete, class: "btn btn-danger", form: { data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Permanently delete #{@bundle.title} (#{@bundle.slug}) and its files? This cannot be undone." } } %>
+  </div>
+</section>
+<p class="field-note mt-2">View counts are approximate: cached visits may not be recorded. Authorized sessions are browser sessions, not unique people.</p>
