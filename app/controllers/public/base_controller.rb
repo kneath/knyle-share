@@ -120,8 +120,11 @@ module Public
       )
     end
 
+    # Legacy routes carry the slug in the path; subdomain routes take it from
+    # the host. Never read it from the query string, or ?slug= could render
+    # one bundle under another bundle's origin.
     def bundle_slug
-      slug = params[:slug].presence || PublicBundleRouting.slug_from_host(host: request.host, public_host:)
+      slug = request.path_parameters[:slug].presence || PublicBundleRouting.slug_from_host(host: request.host, public_host:)
       raise ActiveRecord::RecordNotFound, "Bundle not found" if slug.blank?
 
       slug
