@@ -3,6 +3,7 @@ require_relative "../lib/public_bundle_routing"
 require_relative "../lib/bundle_subdomain_static"
 require_relative "../lib/host_constraint"
 require_relative "../lib/bundle_subdomain_host_constraint"
+require_relative "../lib/strip_forwarded_host"
 
 require "rails"
 # Pick the frameworks you want:
@@ -44,6 +45,8 @@ module KnyleShare
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
     config.assets.prefix = "/app-assets"
+
+    config.middleware.insert_before 0, StripForwardedHost
 
     # Production sits behind Cloudflare, so the connecting IP Render sees is a
     # Cloudflare edge. Trusting Cloudflare's published ranges lets
