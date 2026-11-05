@@ -31,6 +31,10 @@ class MemoryObjectStore
     @objects[destination_key] = @objects.fetch(source_key).dup
   end
 
+  def any?(prefix:)
+    list(prefix:).any?
+  end
+
   def list(prefix:)
     objects.filter_map do |key, value|
       if key.start_with?(prefix)

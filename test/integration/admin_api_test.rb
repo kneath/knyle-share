@@ -660,6 +660,10 @@ class AdminApiTest < ActionDispatch::IntegrationTest
         @objects = objects.transform_values(&:dup)
       end
 
+      def any?(prefix:)
+        list(prefix:).any?
+      end
+
       def list(prefix:)
         objects
           .sort

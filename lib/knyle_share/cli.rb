@@ -112,6 +112,10 @@ module KnyleShare
             skip_confirmation: !options[:confirm_upload]
           )
 
+          if source.byte_size > MAX_UPLOAD_BYTES
+            raise Error, "#{source.display_path} is #{source.byte_size} bytes. Uploads are limited to 5 GB, the most S3 accepts in one request."
+          end
+
           say "Creating upload…" unless options[:json]
           upload = client.create_upload(
             slug: bundle_slug,
@@ -197,6 +201,8 @@ module KnyleShare
       0
     end
 
+    # S3's limit for a single PUT (and for the server's CopyObject).
+    MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024
     PUBLISH_POLL_INTERVAL = 2
     PUBLISH_TIMEOUT = 60 * 60
 

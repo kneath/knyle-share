@@ -113,6 +113,10 @@ class BundleIngest::StagedObjectListerTest < ActiveSupport::TestCase
         @objects = objects
       end
 
+      def any?(prefix:)
+        list(prefix:).any?
+      end
+
       def list(prefix:)
         @objects
           .select { |key, _| key.start_with?(prefix) }

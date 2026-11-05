@@ -44,7 +44,7 @@ module BundleIngest
       return @archive_object = nil unless bundle_upload.source_kind == "directory"
 
       @archive_object =
-        if object_store.list(prefix: directory_prefix).any?
+        if object_store.any?(prefix: directory_prefix)
           nil
         else
           object_store

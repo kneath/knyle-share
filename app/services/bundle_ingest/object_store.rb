@@ -41,6 +41,11 @@ module BundleIngest
       objects
     end
 
+    # Whether anything is stored under the prefix, from a single one-key list.
+    def any?(prefix:)
+      client.list_objects_v2(bucket:, prefix:, max_keys: 1).contents.any? { |object| !object.key.end_with?("/") }
+    end
+
     def copy(source_key:, destination_key:)
       client.copy_object(
         bucket:,

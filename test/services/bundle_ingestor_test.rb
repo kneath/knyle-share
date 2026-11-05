@@ -348,6 +348,10 @@ class BundleIngestorTest < ActiveSupport::TestCase
         @deleted_keys = []
       end
 
+      def any?(prefix:)
+        list(prefix:).any?
+      end
+
       def list(prefix:)
         objects
           .sort

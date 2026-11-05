@@ -68,4 +68,18 @@ class BundleIngestObjectStoreTest < ActiveSupport::TestCase
 
     assert_match "bundles/1/a.txt (AccessDenied)", error.message
   end
+
+  test "any? asks S3 for at most one key" do
+    calls = []
+    s3_client = Object.new
+    s3_client.define_singleton_method(:list_objects_v2) do |**options|
+      calls << options
+      Struct.new(:contents).new(options[:prefix] == "uploads/site/" ? [Struct.new(:key).new("uploads/site/index.html")] : [])
+    end
+    store = BundleIngest::ObjectStore.new(bucket: "knyle-share-test", s3_client:)
+
+    assert store.any?(prefix: "uploads/site/")
+    assert_not store.any?(prefix: "uploads/empty/")
+    assert_equal [1, 1], calls.map { |options| options[:max_keys] }
+  end
 end
