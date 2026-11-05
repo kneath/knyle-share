@@ -101,6 +101,8 @@ module Public
         request_path: request.path
       )
 
+      # Uploaded sites bring their own scripts and styles, so the app's policy doesn't apply.
+      request.content_security_policy = nil
       render html: fetched_asset.fetch(:body).html_safe, layout: false, content_type: fetched_asset.fetch(:content_type)
     end
 

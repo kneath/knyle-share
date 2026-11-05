@@ -624,6 +624,30 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "app-rendered pages carry a content security policy with a script nonce" do
+    with_stubbed_storage("field-notes.md" => "# Heading\n\nHello public bundle.") do
+      get "http://field-notes.share.lvh.me/"
+    end
+
+    assert_response :success
+    policy = response.headers["Content-Security-Policy"]
+    assert_match(/script-src 'self' 'nonce-[^']+'/, policy)
+    assert_match(/object-src 'none'/, policy)
+    assert_match(/frame-ancestors 'self'/, policy)
+    nonce = policy[/'nonce-([^']+)'/, 1]
+    assert_includes response.body, %(<script type="importmap" data-turbo-track="reload" nonce="#{nonce}">)
+  end
+
+  test "uploaded static sites are served without the app's content security policy" do
+    with_stubbed_storage("index.html" => "<!doctype html><script>window.ok = true</script>") do
+      get "http://design-review.share.lvh.me/"
+    end
+
+    assert_response :success
+    assert_includes response.body, "window.ok = true"
+    assert_nil response.headers["Content-Security-Policy"]
+  end
+
   test "viewer cookies set before the __Host- prefix keep working and move to the new name" do
     legacy_name = "bundle_access_#{@protected_download.id}"
     host_name = "__Host-#{legacy_name}"
