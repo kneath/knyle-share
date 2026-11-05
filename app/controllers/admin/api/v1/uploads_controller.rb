@@ -79,7 +79,9 @@ module Admin
 
         def generate_ingest_key(bundle_upload)
           token = SecureRandom.uuid
-          filename = File.basename(bundle_upload.original_filename.to_s.presence || "upload.bin")
+          # The model rejects paths and control characters before saving. Avoid
+          # File.basename here so null bytes reach validation instead of raising.
+          filename = bundle_upload.original_filename.to_s.presence || "upload.bin"
           "uploads/#{token}/#{filename}"
         end
 
