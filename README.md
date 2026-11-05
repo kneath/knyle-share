@@ -162,10 +162,15 @@ bin/setup
 - Install gems
 - Prepare the database
 - Clear old logs and temp files
-- Start the Rails server
+- Start the Rails server and publishing worker together
 - Copy `.env.example` to `.env` first if you have not created `.env` yet
 
 The development database lives at `storage/development.sqlite3`.
+
+For subsequent starts, run `bin/dev`. It supervises both processes, forwards
+arguments to the Rails server (for example, `bin/dev -p 3001`), and stops both
+when you press Ctrl-C or either process exits. The worker publishes queued uploads
+against the same development database.
 
 Then open:
 

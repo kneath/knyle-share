@@ -1,2 +1,28 @@
 #!/usr/bin/env ruby
-exec "./bin/rails", "server", *ARGV
+require "rbconfig"
+
+Dir.chdir(File.expand_path("..", __dir__))
+children = []
+Signal.trap("INT") { exit 130 }
+Signal.trap("TERM") { exit 143 }
+
+begin
+  children << Process.spawn(RbConfig.ruby, "bin/publishing-worker")
+  children << Process.spawn(RbConfig.ruby, "bin/rails", "server", *ARGV)
+
+  # Stop both processes when either exits, so uploads cannot silently stall.
+  pid, status = Process.wait2
+  children.delete(pid)
+  exit(status.exitstatus || 128 + status.termsig)
+ensure
+  children.each do |pid|
+    Process.kill("TERM", pid)
+  rescue Errno::ESRCH
+    # The child may already have exited.
+  end
+  children.each do |pid|
+    Process.wait(pid)
+  rescue Errno::ECHILD
+    # The child may already have been reaped.
+  end
+end
