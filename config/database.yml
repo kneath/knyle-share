@@ -6,7 +6,9 @@
 #
 default: &default
   adapter: sqlite3
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Puma threads and :async job threads (view recording, storage cleanup)
+  # share the pool, so leave room for both.
+  pool: <%= ENV.fetch("DATABASE_POOL") { ENV.fetch("RAILS_MAX_THREADS", 5).to_i * 2 + 2 } %>
   timeout: 5000
 
 development:

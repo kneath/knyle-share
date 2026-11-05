@@ -45,11 +45,12 @@ class PublishingExperienceTest < ActionDispatch::IntegrationTest
       post "/uploads", params: upload_params.merge(file: fixture_file)
       assert_response :created
       id = response.parsed_body.fetch("id")
-      assert_enqueued_with(job: ProcessBundleUploadJob, args: [id]) { post "/uploads/#{id}/process" }
+      assert_no_enqueued_jobs { post "/uploads/#{id}/process" }
       assert_response :accepted
       assert_equal "queued", response.parsed_body["status"]
       assert_no_enqueued_jobs { post "/uploads/#{id}/process" }
-      ProcessBundleUploadJob.perform_now(id)
+      assert_equal "queued", BundleUpload.find(id).status
+      PublishingMaintenance.publish_queued
       assert_difference("Bundle.count", 0) { post "/uploads/#{id}/process" }
       assert_equal "ready", response.parsed_body["status"]
       assert_match "experience-notes.share.lvh.me", response.parsed_body["public_url"]
