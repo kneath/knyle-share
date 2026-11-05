@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_05_000100) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_05_000200) do
   create_table "api_tokens", force: :cascade do |t|
     t.string "label", null: false
     t.string "token_digest", null: false
@@ -34,7 +34,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_05_000100) do
     t.text "rendered_html"
     t.integer "rendered_html_version"
     t.index ["bundle_id", "path"], name: "index_bundle_assets_on_bundle_id_and_path", unique: true
-    t.index ["bundle_id"], name: "index_bundle_assets_on_bundle_id"
   end
 
   create_table "bundle_unique_viewers", force: :cascade do |t|
@@ -44,7 +43,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_05_000100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["bundle_id", "viewer_session_id"], name: "index_bundle_unique_viewers_on_bundle_id_and_viewer_session_id", unique: true
-    t.index ["bundle_id"], name: "index_bundle_unique_viewers_on_bundle_id"
     t.index ["viewer_session_id"], name: "index_bundle_unique_viewers_on_viewer_session_id"
   end
 

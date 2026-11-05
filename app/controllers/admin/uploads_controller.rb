@@ -71,8 +71,9 @@ module Admin
     end
 
     def process_upload
-      changed = BundleUpload.where(id: @bundle_upload.id, status: %w[staged failed]).update_all(status: "queued", error_message: nil, updated_at: Time.current)
-      ProcessBundleUploadJob.perform_later(@bundle_upload.id) if changed == 1
+      # The publishing worker picks queued uploads up within a few seconds.
+      # Enqueuing a job here would run it inside Puma (the :async adapter).
+      BundleUpload.where(id: @bundle_upload.id, status: %w[staged failed]).update_all(status: "queued", error_message: nil, updated_at: Time.current)
       @bundle_upload.reload
       unless %w[queued processing ready].include?(@bundle_upload.status)
         return render json: { error: "Finish transferring the file before publishing." }, status: :conflict

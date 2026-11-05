@@ -9,7 +9,7 @@ class PublishingMaintenance
         StorageCleanup.schedule!(keys, label: "Interrupted upload #{upload.slug}")
       end
     end
-    BundleUpload.where(status: "queued").find_each { |upload| ProcessBundleUploadJob.perform_now(upload.id) }
+    publish_queued
     BundleUpload.where(status: %w[pending staged failed canceled]).where("updated_at < ?", 7.days.ago).find_each do |upload|
       store = BundleIngest::ObjectStore.new
       keys = store.list(prefix: upload.ingest_key).map(&:key)
@@ -21,5 +21,11 @@ class PublishingMaintenance
     end
     StorageCleanup.where("next_attempt_at IS NULL OR next_attempt_at <= ?", Time.current).find_each(&:perform!)
     ViewerDataPruner.run
+  end
+
+  # Publishes uploads waiting in the queue. The worker calls this every few
+  # seconds, so publishing never runs inside a web process.
+  def self.publish_queued
+    BundleUpload.where(status: "queued").order(:id).find_each { |upload| ProcessBundleUploadJob.perform_now(upload.id) }
   end
 end

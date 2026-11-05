@@ -20,6 +20,7 @@ Rails.application.routes.draw do
           get "bundles/:slug", to: "bundles#show", as: :bundle
           post "bundles/:slug/links", to: "bundle_links#create", as: :bundle_links
           post "uploads", to: "uploads#create", as: :uploads
+          get "uploads/:id", to: "uploads#show"
           put "uploads/:id", to: "uploads#update", as: :upload
           post "uploads/:id/process", to: "uploads#process_upload", as: :process_upload
         end

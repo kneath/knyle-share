@@ -544,7 +544,10 @@ Render blueprint now uses this entry point. For another process manager, run
 both processes against the **same database and disk**; do not point a separate
 Render service at a different SQLite database.
 
-Upload state and storage-deletion tasks are persisted. The worker picks up
+Upload state and storage-deletion tasks are persisted. The worker does all
+publishing: uploads from the admin page and the CLI are queued, and the worker
+checks the queue every two seconds, so the web process never runs an ingest.
+If the worker isn't running, uploads stay queued. It also picks up
 queued publications after restarts, retries failed deletions, and cleans up
 unfinished uploads after seven days. Processing interrupted for more than 30
 minutes becomes retryable. The admin library reports pending/failed file

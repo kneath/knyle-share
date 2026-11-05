@@ -515,6 +515,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_includes response.headers.fetch("Cache-Control"), "public"
       assert_includes response.headers.fetch("Cache-Control"), "max-age=300"
       assert_equal "public, max-age=31536000, immutable", fake_storage.downloads.last.fetch(:response_cache_control)
+      assert_equal true, fake_storage.downloads.last.fetch(:stable)
 
       post "http://private-review.share.lvh.me/access", params: { password: "river maple lantern" }
 
@@ -524,6 +525,7 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
       assert_equal "private, no-store", response.headers["Cache-Control"]
       assert_equal "no-cache", response.headers["Pragma"]
       assert_equal "private, no-store", fake_storage.downloads.last.fetch(:response_cache_control)
+      assert_equal false, fake_storage.downloads.last.fetch(:stable)
     end
   end
 
@@ -624,6 +626,35 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "public pages don't set a session cookie, so shared caches can store them" do
+    with_forgery_protection do
+      with_stubbed_storage("field-notes.md" => "# Heading\n\nHello public bundle.") do
+        get "http://field-notes.share.lvh.me/"
+      end
+    end
+
+    assert_response :success
+    assert_includes response.headers["Cache-Control"], "public"
+    assert_nil response.headers["Set-Cookie"]
+    assert_no_match(/csrf-token/, response.body)
+  end
+
+  test "the password gate still works with forgery protection on" do
+    with_forgery_protection do
+      with_stubbed_storage("private-brief.pdf" => "%PDF-1.7 mock") do
+        get "http://private-brief.share.lvh.me/"
+        assert_response :success
+        token = css_select('form input[name="authenticity_token"]').first&.attribute("value")&.value
+        assert token.present?
+
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern", authenticity_token: token }
+        assert_redirected_to "http://private-brief.share.lvh.me/"
+        follow_redirect!
+        assert_match "Download file", response.body
+      end
+    end
+  end
+
   test "app-rendered pages carry a content security policy with a script nonce" do
     with_stubbed_storage("field-notes.md" => "# Heading\n\nHello public bundle.") do
       get "http://field-notes.share.lvh.me/"
@@ -714,12 +745,13 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
         raise BundleStorage::MissingObjectError, asset.path
       end
 
-      def download_url(asset, disposition:, expires_in: 5.minutes, response_cache_control: nil)
+      def download_url(asset, disposition:, expires_in: 5.minutes, response_cache_control: nil, stable: false, **)
         downloads << {
           path: asset.path,
           disposition:,
           expires_in: expires_in.to_i,
-          response_cache_control:
+          response_cache_control:,
+          stable:
         }
         "https://downloads.example.test/#{asset.path}?disposition=#{disposition}"
       end
@@ -752,5 +784,13 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     yield
   ensure
     Rails.configuration.x.host_cookie_prefix = previous
+  end
+
+  def with_forgery_protection
+    previous = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    yield
+  ensure
+    ActionController::Base.allow_forgery_protection = previous
   end
 end

@@ -41,6 +41,11 @@ module BundleIngest
       objects
     end
 
+    # Whether anything is stored under the prefix, from a single one-key list.
+    def any?(prefix:)
+      client.list_objects_v2(bucket:, prefix:, max_keys: 1).contents.any? { |object| !object.key.end_with?("/") }
+    end
+
     def copy(source_key:, destination_key:)
       client.copy_object(
         bucket:,
@@ -53,6 +58,12 @@ module BundleIngest
 
     def read(key:)
       client.get_object(bucket:, key:).body.read
+    end
+
+    # Streams the object to a local file instead of holding it in memory.
+    def download(key:, to:)
+      client.get_object(bucket:, key:, response_target: to)
+      to
     end
 
     def write(key:, body:, content_type:)
@@ -76,6 +87,19 @@ module BundleIngest
 
     def delete(key:)
       client.delete_object(bucket:, key:)
+    end
+
+    DELETE_BATCH_SIZE = 1_000
+
+    # One DeleteObjects request per 1,000 keys instead of one request each.
+    def delete_many(keys:)
+      keys.each_slice(DELETE_BATCH_SIZE) do |batch|
+        response = client.delete_objects(bucket:, delete: { objects: batch.map { |key| { key: } }, quiet: true })
+        next if response.errors.blank?
+
+        failed = response.errors.map { |error| "#{error.key} (#{error.code})" }
+        raise Aws::S3::Errors::ServiceError.new(nil, "Could not delete #{failed.size} object(s): #{failed.first(5).join(', ')}")
+      end
     end
 
     private

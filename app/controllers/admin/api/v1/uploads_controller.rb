@@ -5,7 +5,7 @@ module Admin
     module V1
       class UploadsController < BaseController
         before_action :mark_api_token_used!
-        before_action :set_bundle_upload, only: %i[update process_upload]
+        before_action :set_bundle_upload, only: %i[show update process_upload]
         before_action -> { authorize_slug!(params.dig(:upload, :slug)) }, only: :create
 
         def create
@@ -29,6 +29,12 @@ module Admin
           ), status: :created
         end
 
+        # Publishing status, for clients that asked to publish in the background.
+        def show
+          response.set_header("Cache-Control", "no-store")
+          render json: status_payload(@bundle_upload)
+        end
+
         def update
           return render json: serialize_upload(@bundle_upload) if @bundle_upload.ready? || @bundle_upload.staged?
           unless @bundle_upload.pending?
@@ -40,7 +46,12 @@ module Admin
           render json: serialize_upload(@bundle_upload)
         end
 
+        # Clients that send "Prefer: respond-async" get 202 right away, and the
+        # publishing worker does the work. They poll GET /api/v1/uploads/:id.
+        # Clients that don't (older CLIs) still publish within this request.
         def process_upload
+          return queue_upload if respond_async?
+
           result = BundleIngestor.new(bundle_upload: @bundle_upload, object_store: object_store).call
 
           render json: serialize_upload(@bundle_upload).merge(
@@ -49,6 +60,35 @@ module Admin
         end
 
         private
+
+        def respond_async?
+          request.headers["Prefer"].to_s.split(",").any? { |preference| preference.strip.casecmp?("respond-async") }
+        end
+
+        def queue_upload
+          BundleUpload.where(id: @bundle_upload.id, status: %w[pending staged failed])
+            .update_all(status: "queued", error_message: nil, updated_at: Time.current)
+          @bundle_upload.reload
+          unless %w[queued processing ready].include?(@bundle_upload.status)
+            return render json: { error: "This upload cannot be published in its current state." }, status: :conflict
+          end
+
+          response.set_header("Preference-Applied", "respond-async")
+          render json: status_payload(@bundle_upload), status: @bundle_upload.ready? ? :created : :accepted
+        end
+
+        def status_payload(bundle_upload)
+          payload = serialize_upload(bundle_upload)
+          payload[:error_message] = bundle_upload.error_message if bundle_upload.status == "failed"
+          if bundle_upload.ready?
+            if (bundle = Bundle.find_by(id: bundle_upload.published_bundle_id))
+              payload[:bundle] = bundle_payload(bundle)
+            else
+              payload[:error_message] = "This upload was published, but its bundle has since been deleted."
+            end
+          end
+          payload
+        end
 
         def set_bundle_upload
           @bundle_upload = find_bundle_upload!(params[:id])

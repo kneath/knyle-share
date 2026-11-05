@@ -54,7 +54,7 @@ class PublicStaticBundleSystemTest < ApplicationSystemTestCase
         raise BundleStorage::MissingObjectError, asset.path
       end
 
-      def download_url(asset, disposition:, expires_in: 5.minutes)
+      def download_url(asset, disposition:, expires_in: 5.minutes, **)
         "https://downloads.example.test/#{asset.path}?disposition=#{disposition}"
       end
 

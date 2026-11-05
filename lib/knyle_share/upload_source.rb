@@ -91,55 +91,51 @@ module KnyleShare
     end
 
     def build_archive
-      tarfile = Tempfile.new([ directory_name, ".tar" ])
-      tarfile.binmode
+      gzfile = Tempfile.new([ directory_name, ".tar.gz" ])
+      gzfile.close
 
       included_paths = []
       ignore_patterns = load_ignore_patterns
 
-      Gem::Package::TarWriter.new(tarfile) do |tar|
-        Find.find(input_path) do |entry_path|
-          relative_path = relative_entry_path(entry_path)
-          next if relative_path.nil?
+      # Tar straight into gzip: one pass and one temp file instead of a .tar
+      # plus a gzipped copy of it.
+      Zlib::GzipWriter.open(gzfile.path) do |gzip|
+        Gem::Package::TarWriter.new(gzip) do |tar|
+          Find.find(input_path) do |entry_path|
+            relative_path = relative_entry_path(entry_path)
+            next if relative_path.nil?
 
-          if excluded?(entry_path, relative_path, ignore_patterns)
-            Find.prune if File.directory?(entry_path)
-            next
-          end
-
-          stat = File.lstat(entry_path)
-          raise Error, "Symlinks are not supported in directory uploads." if stat.symlink?
-          next if stat.directory?
-
-          tar.add_file_simple(relative_path, stat.mode, stat.size) do |archive_file|
-            File.open(entry_path, "rb") do |source|
-              IO.copy_stream(source, archive_file)
+            if excluded?(entry_path, relative_path, ignore_patterns)
+              Find.prune if File.directory?(entry_path)
+              next
             end
-          end
 
-          included_paths << relative_path
+            stat = File.lstat(entry_path)
+            raise Error, "Symlinks are not supported in directory uploads." if stat.symlink?
+            next if stat.directory?
+
+            tar.add_file_simple(relative_path, stat.mode, stat.size) do |archive_file|
+              File.open(entry_path, "rb") do |source|
+                IO.copy_stream(source, archive_file)
+              end
+            end
+
+            included_paths << relative_path
+          end
         end
       end
 
       raise Error, "Directory #{input_path.inspect} does not contain any files." if included_paths.empty?
 
-      tarfile.rewind
-      gzfile = Tempfile.new([ directory_name, ".tar.gz" ])
-      gzfile.close
-
-      Zlib::GzipWriter.open(gzfile.path) do |gzip|
-        File.open(tarfile.path, "rb") do |tar_source|
-          IO.copy_stream(tar_source, gzip)
-        end
-      end
-
       gzfile.open
       gzfile.binmode
       gzfile.rewind
-      tarfile.close!
       self.relative_paths = included_paths.freeze
       self.file_count = included_paths.length
       gzfile
+    rescue StandardError
+      gzfile&.close!
+      raise
     end
 
     def load_ignore_patterns

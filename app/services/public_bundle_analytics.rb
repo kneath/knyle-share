@@ -8,22 +8,32 @@ class PublicBundleAnalytics
     )
   end
 
+  # One short transaction per view: a unique-viewer insert that skips
+  # duplicates instead of raising, the view row, and a single UPDATE for both
+  # counters and last_viewed_at. Fewer write-lock acquisitions keep views
+  # from queueing behind each other on SQLite.
   def record_view!(bundle:, access_method:, request_path:, viewer_session: nil)
     viewed_at = Time.current
-    unique_viewer_increment = register_unique_viewer(bundle:, viewer_session:, viewed_at:)
 
-    BundleView.create!(
-      bundle:,
-      viewer_session:,
-      access_method:,
-      request_path:,
-      viewed_at:
-    )
+    ActiveRecord::Base.transaction do
+      new_unique_viewer = register_unique_viewer(bundle:, viewer_session:, viewed_at:)
 
-    updates = { total_views_count: 1 }
-    updates[:unique_protected_viewers_count] = 1 if unique_viewer_increment
-    Bundle.update_counters(bundle.id, updates)
-    Bundle.where(id: bundle.id).update_all(last_viewed_at: viewed_at)
+      BundleView.create!(
+        bundle:,
+        viewer_session:,
+        access_method:,
+        request_path:,
+        viewed_at:
+      )
+
+      Bundle.where(id: bundle.id).update_all([
+        "total_views_count = total_views_count + 1, " \
+        "unique_protected_viewers_count = unique_protected_viewers_count + ?, " \
+        "last_viewed_at = ?",
+        new_unique_viewer ? 1 : 0,
+        viewed_at
+      ])
+    end
   end
 
   private
@@ -31,13 +41,11 @@ class PublicBundleAnalytics
   def register_unique_viewer(bundle:, viewer_session:, viewed_at:)
     return false if viewer_session.blank?
 
-    BundleUniqueViewer.create!(
-      bundle:,
-      viewer_session:,
-      first_viewed_at: viewed_at
+    inserted = BundleUniqueViewer.insert_all(
+      [{ bundle_id: bundle.id, viewer_session_id: viewer_session.id, first_viewed_at: viewed_at }],
+      unique_by: %i[bundle_id viewer_session_id],
+      returning: %w[id]
     )
-    true
-  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
-    false
+    inserted.rows.any?
   end
 end

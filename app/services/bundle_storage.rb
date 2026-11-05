@@ -29,15 +29,25 @@ class BundleStorage
     }
   end
 
-  def download_url(asset, disposition:, expires_in: public_asset_redirect_ttl_seconds, response_cache_control: nil)
+  # With stable: true, the URL is signed at the start of a fixed window and
+  # stays valid for two, so every request in a window gets the same URL (and
+  # the browser's cached S3 response), and it always has at least expires_in
+  # seconds left, so a redirect cached for expires_in never hands out an
+  # expired URL.
+  def download_url(asset, disposition:, expires_in: public_asset_redirect_ttl_seconds, response_cache_control: nil, stable: false, now: Time.current)
+    expires_in = expires_in.to_i
     params = {
       bucket:,
       key: asset.storage_key,
       response_content_type: asset.content_type,
       response_content_disposition: content_disposition_for(asset:, disposition:),
-      expires_in: expires_in.to_i
+      expires_in:
     }
     params[:response_cache_control] = response_cache_control if response_cache_control.present?
+    if stable && expires_in.positive?
+      params[:time] = Time.at((now.to_i / expires_in) * expires_in)
+      params[:expires_in] = expires_in * 2
+    end
 
     Aws::S3::Presigner.new(client:).presigned_url(:get_object, **params)
   end

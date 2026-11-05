@@ -2,14 +2,26 @@
 require_relative "../config/environment"
 # Run beside Puma on the same host/disk as SQLite. Persistent records recover
 # queued publication and deletion work after a web-process restart.
+#
+# Queued uploads are checked every couple of seconds so publishing starts
+# quickly; the rest of the maintenance runs every 30 seconds.
+QUEUE_POLL_SECONDS = 2
+MAINTENANCE_INTERVAL_SECONDS = 30
+
 stop = false
 Signal.trap("TERM") { stop = true }
 Signal.trap("INT") { stop = true }
+next_maintenance_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 until stop
   Rails.application.executor.wrap do
-    PublishingMaintenance.run
+    if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= next_maintenance_at
+      next_maintenance_at = Process.clock_gettime(Process::CLOCK_MONOTONIC) + MAINTENANCE_INTERVAL_SECONDS
+      PublishingMaintenance.run
+    else
+      PublishingMaintenance.publish_queued
+    end
   rescue StandardError => error
     Rails.logger.error("Publishing worker: #{error.class}: #{error.message}")
   end
-  30.times { break if stop; sleep 1 }
+  QUEUE_POLL_SECONDS.times { break if stop; sleep 1 }
 end

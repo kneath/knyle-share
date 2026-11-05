@@ -22,11 +22,14 @@ class Bundle < ApplicationRecord
 
   has_secure_password validations: false
 
-  has_many :assets, class_name: "BundleAsset", dependent: :destroy
+  # None of these models have destroy callbacks, so delete each set with one
+  # statement rather than loading and destroying rows one at a time. Views and
+  # unique viewers go before the sessions they reference.
+  has_many :assets, class_name: "BundleAsset", dependent: :delete_all
   has_one :primary_asset, -> { joins(:bundle).where("bundle_assets.path = bundles.entry_path") }, class_name: "BundleAsset"
-  has_many :viewer_sessions, dependent: :destroy
-  has_many :bundle_views, dependent: :destroy
-  has_many :unique_viewers, class_name: "BundleUniqueViewer", dependent: :destroy
+  has_many :bundle_views, dependent: :delete_all
+  has_many :unique_viewers, class_name: "BundleUniqueViewer", dependent: :delete_all
+  has_many :viewer_sessions, dependent: :delete_all
 
   validates :slug,
     presence: true,

@@ -93,7 +93,7 @@ module Public
     def render_html_asset(asset, access_method:, viewer_session: nil)
       return unless stale_bundle_page?(asset:, variant: :static_site_html)
 
-      fetched_asset = fetch_bundle_asset(asset)
+      body = static_html_body(asset)
       record_bundle_view(
         bundle: @bundle,
         viewer_session:,
@@ -103,7 +103,7 @@ module Public
 
       # Uploaded sites bring their own scripts and styles, so the app's policy doesn't apply.
       request.content_security_policy = nil
-      render html: fetched_asset.fetch(:body).html_safe, layout: false, content_type: fetched_asset.fetch(:content_type)
+      render html: body.html_safe, layout: false, content_type: asset.content_type
     end
 
     def send_asset(asset, disposition:)
@@ -116,7 +116,8 @@ module Public
           asset,
           disposition:,
           expires_in: storage.public_asset_redirect_ttl_seconds,
-          response_cache_control: bundle_asset_response_cache_control
+          response_cache_control: bundle_asset_response_cache_control,
+          stable: @bundle.public_access?
         ),
         allow_other_host: true
       )
@@ -154,7 +155,9 @@ module Public
         @bundle.status,
         asset&.id,
         asset&.checksum,
-        asset&.rendered_html_version,
+        # Pages always render with the current renderer (a stale stored render
+        # is replaced), so key on it rather than the asset's stored version.
+        BundleMarkdownRenderer::VERSION,
         asset&.byte_size,
         asset&.content_type
       ]
@@ -196,12 +199,34 @@ module Public
       end
     end
 
-    def fetch_bundle_asset(asset)
-      measure_server_timing("bundle-storage-read") { storage.fetch(asset) }
-    end
-
     def read_bundle_asset(asset)
       measure_server_timing("bundle-storage-read") { storage.read(asset) }
+    end
+
+    MARKDOWN_CACHE_TTL = 1.week
+    STATIC_HTML_CACHE_MAX_BYTES = 1.megabyte
+    STATIC_HTML_CACHE_TTL = 1.week
+
+    # Static-site pages are read from S3 on every miss (protected sites can't
+    # be cached downstream), so keep small ones in the cache. Storage keys are
+    # unique per publish, and access is checked before this is called.
+    def static_html_body(asset)
+      return read_bundle_asset(asset) if asset.byte_size.nil? || asset.byte_size > STATIC_HTML_CACHE_MAX_BYTES
+
+      Rails.cache.fetch(["bundle-static-html", asset.storage_key, asset.checksum], expires_in: STATIC_HTML_CACHE_TTL) do
+        read_bundle_asset(asset)
+      end
+    end
+
+    # Rendering (mostly sanitizing) a large Markdown file takes seconds, so
+    # cache the HTML. Storage keys change on every publish, so a cached
+    # render can't go stale; access is checked before this is called.
+    def rendered_markdown_for(asset)
+      key = ["bundle-markdown", BundleMarkdownRenderer::VERSION, asset.storage_key, asset.checksum]
+      Rails.cache.fetch(key, expires_in: MARKDOWN_CACHE_TTL) do
+        markdown_body = read_bundle_asset(asset)
+        measure_server_timing("bundle-markdown-render") { BundleMarkdownRenderer.render(markdown_body) }
+      end
     end
 
     def record_bundle_view(bundle:, viewer_session:, access_method:, request_path:)

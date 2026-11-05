@@ -1,8 +1,14 @@
+require "fileutils"
+require "tmpdir"
+
 class BundleIngestor
   Error = Class.new(StandardError)
   Result = Data.define(:bundle, :bundle_upload, :classification, :replacing_existing)
 
   DEFAULT_PASSWORD_SESSION_TTL = 24.hours.to_i
+  # S3 calls are network-bound, so a few at once publish large bundles many
+  # times faster than one after another.
+  DEFAULT_TRANSFER_CONCURRENCY = 8
 
   def initialize(bundle_upload:, object_store: BundleIngest::ObjectStore.new)
     @bundle_upload = bundle_upload
@@ -25,6 +31,7 @@ class BundleIngestor
     copied_keys = []
     committed = false
     cleanup = nil
+    @work_dir = Dir.mktmpdir("knyle-ingest")
 
     # Network IO and Markdown rendering happen before acquiring a write lock.
     existing = Bundle.find_by(slug: bundle_upload.slug)
@@ -34,7 +41,7 @@ class BundleIngestor
     staged_entries = staged_object_lister.call
     classification = classify(staged_entries)
     copied_assets = copy_and_build_assets!(classification:, staged_entries:, copied_keys:)
-    archive_key, archive_size = prepare_archive(staged_entries, copied_keys) if classification.source_kind == "directory"
+    archive_key, archive_size = publish_archive(staged_entries, copied_keys) if classification.source_kind == "directory"
 
     ActiveRecord::Base.transaction do
       current_upload = BundleUpload.find(bundle_upload.id)
@@ -47,15 +54,14 @@ class BundleIngestor
       old_keys = current ? current.assets.pluck(:storage_key) + [current.archive_storage_key] : []
       bundle = prepare_bundle!(existing_bundle: current, classification:, staged_entries:)
       bundle.update!(archive_storage_key: archive_key, archive_byte_size: archive_size)
-      bundle.assets.destroy_all
-      copied_assets.each { |asset| asset.bundle = bundle; asset.save! }
+      replace_assets!(bundle, copied_assets)
       bundle_upload.update!(status: "ready", published_bundle_id: bundle.id, error_message: nil)
       cleanup = StorageCleanup.schedule!(old_keys + staged_entries.map(&:source_key) + [bundle_upload.ingest_key], label: "Published #{bundle.slug}")
       @result = Result.new(bundle:, bundle_upload:, classification:, replacing_existing: existing.present?)
     end
     committed = true
-    # The durable record survives a process exit; try immediately when possible.
-    cleanup&.perform!(store: object_store)
+    # StorageCleanup enqueues itself on commit, and the publishing worker
+    # retries it, so old files don't have to be deleted inside this request.
     @result
   rescue StandardError => error
     unless committed
@@ -64,16 +70,19 @@ class BundleIngestor
         .update_all(status: "failed", error_message: error.message) if token
     end
     raise Error, error.message
+  ensure
+    FileUtils.remove_entry(@work_dir) if @work_dir && File.exist?(@work_dir)
   end
 
   private
 
-  attr_reader :bundle_upload, :object_store
+  attr_reader :bundle_upload, :object_store, :work_dir
 
   def staged_object_lister
     @staged_object_lister ||= BundleIngest::StagedObjectLister.new(
       bundle_upload:,
-      object_store:
+      object_store:,
+      work_dir:
     )
   end
 
@@ -135,12 +144,11 @@ class BundleIngestor
   end
 
   def copy_and_build_assets!(classification:, staged_entries:, copied_keys:)
-    staged_entries.map do |entry|
-      storage_key = "#{bundle_upload.publish_prefix}/#{entry.path}"
+    planned = staged_entries.map { |entry| [entry, "#{bundle_upload.publish_prefix}/#{entry.path}"] }
+    copied_keys.concat(planned.map(&:last))
+    transfer_entries(planned)
 
-      copied_keys << storage_key
-      transfer_entry(entry:, destination_key: storage_key)
-
+    planned.map do |entry, storage_key|
       BundleAsset.new(
         path: entry.path,
         storage_key:,
@@ -151,6 +159,51 @@ class BundleIngestor
         rendered_html_version: rendered_markdown_version_for(entry:, classification:)
       )
     end
+  end
+
+  # Runs transfers on a small thread pool. The first failure stops the rest
+  # and is re-raised, so the caller's cleanup removes whatever was copied.
+  def transfer_entries(planned)
+    queue = Queue.new
+    planned.each { |item| queue << item }
+    queue.close
+    failures = Queue.new
+
+    threads = Array.new([transfer_concurrency, planned.size].min) do
+      Thread.new do
+        while (item = queue.pop) && failures.empty?
+          entry, destination_key = item
+          transfer_entry(entry:, destination_key:)
+        end
+      rescue StandardError => error
+        failures << error
+      end
+    end
+    # Let the workers autoload in development while this thread waits.
+    ActiveSupport::Dependencies.interlock.permit_concurrent_loads { threads.each(&:join) }
+
+    raise failures.pop unless failures.empty?
+  end
+
+  def transfer_concurrency
+    Integer(ENV.fetch("PUBLISH_TRANSFER_CONCURRENCY", DEFAULT_TRANSFER_CONCURRENCY)).clamp(1, 32)
+  rescue ArgumentError, TypeError
+    DEFAULT_TRANSFER_CONCURRENCY
+  end
+
+  ASSET_INSERT_BATCH_SIZE = 500
+
+  # Swaps a bundle's assets with bulk statements instead of a SELECT, INSERT,
+  # and counter UPDATE per file, which held SQLite's write lock for seconds
+  # on large bundles. Paths are already unique (the extractor and S3 keys
+  # guarantee it), and the unique index still backs that up.
+  def replace_assets!(bundle, assets)
+    BundleAsset.where(bundle_id: bundle.id).delete_all
+    rows = assets.map do |asset|
+      asset.attributes.except("id", "bundle_id", "created_at", "updated_at").merge("bundle_id" => bundle.id)
+    end
+    rows.each_slice(ASSET_INSERT_BATCH_SIZE) { |batch| BundleAsset.insert_all!(batch) }
+    bundle.update_columns(asset_count: rows.size)
   end
 
   def protected_password_digest
@@ -169,45 +222,61 @@ class BundleIngestor
     cleanup&.perform!(store: object_store)
   end
 
-  def prepare_archive(entries, copied_keys)
+  # The "download all" archive. An uploaded .tar.gz is copied as is, so the
+  # download is exactly what was uploaded. Directory uploads staged as loose
+  # objects are tarred and gzipped in one streaming pass through a tempfile.
+  def publish_archive(entries, copied_keys)
+    key = "#{bundle_upload.publish_prefix}-archive.tar.gz"
+    copied_keys << key
+
+    if (uploaded_archive = staged_object_lister.archive_object)
+      object_store.copy(source_key: uploaded_archive.key, destination_key: key)
+      return [key, uploaded_archive.byte_size]
+    end
+
+    build_archive(entries, key:)
+  end
+
+  def build_archive(entries, key:)
     require "rubygems/package"
     require "zlib"
-    require "tempfile"
-    # Use disk for the assembled archive instead of keeping another full copy
-    # of the bundle in memory on small self-hosted instances.
-    Tempfile.create(["knyle-bundle", ".tar"]) do |tar_io|
-      tar_io.binmode
-      Gem::Package::TarWriter.new(tar_io) do |tar|
+
+    path = File.join(work_dir, "bundle.tar.gz")
+    Zlib::GzipWriter.open(path) do |gzip|
+      Gem::Package::TarWriter.new(gzip) do |tar|
         entries.each do |entry|
-          body = entry.body || object_store.read(key: entry.source_key)
-          tar.add_file_simple(entry.path, 0o644, body.bytesize) { |io| io.write(body) }
+          with_local_file(entry) do |local_path|
+            tar.add_file_simple(entry.path, 0o644, File.size(local_path)) do |io|
+              File.open(local_path, "rb") { |file| IO.copy_stream(file, io) }
+            end
+          end
         end
       end
-      tar_io.rewind
-      Tempfile.create(["knyle-bundle", ".tar.gz"]) do |compressed|
-        compressed.binmode
-        gzip = Zlib::GzipWriter.new(compressed)
-        IO.copy_stream(tar_io, gzip)
-        gzip.finish
-        compressed.flush
-        compressed.rewind
-        key = "#{bundle_upload.publish_prefix}-archive.tar.gz"
-        copied_keys << key
-        object_store.write(key:, body: compressed, content_type: "application/gzip")
-        return [key, compressed.size]
-      end
     end
+
+    File.open(path, "rb") do |compressed|
+      object_store.write(key:, body: compressed, content_type: "application/gzip")
+    end
+    [key, File.size(path)]
+  end
+
+  def with_local_file(entry)
+    return yield entry.local_path if entry.local_path.present?
+
+    path = File.join(work_dir, "source-object")
+    object_store.download(key: entry.source_key, to: path)
+    yield path
+  ensure
+    File.delete(path) if path && File.exist?(path)
   end
 
   def transfer_entry(entry:, destination_key:)
     if entry.source_key.present?
       object_store.copy(source_key: entry.source_key, destination_key:)
     else
-      object_store.write(
-        key: destination_key,
-        body: entry.body,
-        content_type: entry.content_type
-      )
+      File.open(entry.local_path, "rb") do |body|
+        object_store.write(key: destination_key, body:, content_type: entry.content_type)
+      end
     end
   end
 
@@ -230,7 +299,7 @@ class BundleIngestor
   end
 
   def markdown_body_for(entry)
-    return entry.body if entry.body.present?
+    return File.read(entry.local_path) if entry.local_path.present?
     return object_store.read(key: entry.source_key) if entry.source_key.present?
 
     raise Error, "Missing markdown body for #{entry.path.inspect}"

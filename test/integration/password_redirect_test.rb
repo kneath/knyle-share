@@ -32,8 +32,8 @@ class PasswordRedirectTest < ActionDispatch::IntegrationTest
     assert_redirected_to "/"
 
     storage = Object.new
-    def storage.fetch(*)
-      { body: "<h1>Private site</h1>", content_type: "text/html" }
+    def storage.read(*)
+      "<h1>Private site</h1>"
     end
     BundleStorage.stub :new, storage do
       follow_redirect!

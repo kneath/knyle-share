@@ -61,4 +61,29 @@ class PublicBundleAnalyticsTest < ActiveSupport::TestCase
       analytics.record_view_later(bundle:, access_method: "public", request_path: "/")
     end
   end
+
+  test "a view is recorded in one transaction with one bundle update" do
+    @bundle = Bundle.create!(slug: "private-brief", title: "Private Brief", source_kind: "file", presentation_kind: "single_download",
+      access_mode: "protected", status: "active", password: "river maple lantern")
+    session = @bundle.viewer_sessions.create!(token_digest: SecureRandom.hex(16), expires_at: 1.day.from_now, last_seen_at: Time.current)
+    analytics = PublicBundleAnalytics.new
+    analytics.record_view!(bundle: @bundle, viewer_session: session, access_method: "password", request_path: "/")
+    statements = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      statements << payload[:sql] if payload[:sql].match?(/\A(INSERT|UPDATE|BEGIN|SAVEPOINT)/i)
+    end
+
+    begin
+      analytics.record_view!(bundle: @bundle, viewer_session: session, access_method: "password", request_path: "/")
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    # Tests run inside a transaction, so the view's transaction is a savepoint here.
+    assert_equal 1, statements.count { |sql| sql.match?(/\A(BEGIN|SAVEPOINT)/i) }
+    assert_equal 1, statements.count { |sql| sql.match?(/\AUPDATE "bundles"/) }
+    @bundle.reload
+    assert_equal 2, @bundle.total_views_count
+    assert_equal 1, @bundle.unique_protected_viewers_count
+  end
 end

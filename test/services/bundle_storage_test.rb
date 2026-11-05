@@ -32,6 +32,31 @@ class BundleStorageTest < ActiveSupport::TestCase
     assert_equal "report.pdf", result[:filename]
   end
 
+  test "stable download URLs are identical within a window and outlive a cached redirect" do
+    asset = BundleAsset.new(path: "assets/app.js", storage_key: "bundles/1/1/assets/app.js", content_type: "text/javascript")
+    storage = BundleStorage.new(
+      bucket: "knyle-share-test",
+      s3_client: Aws::S3::Client.new(region: "us-west-2", credentials: Aws::Credentials.new("key", "secret"), stub_responses: true)
+    )
+    window_start = Time.utc(2026, 11, 5, 12, 0, 0)
+    url_at = ->(time, **options) { storage.download_url(asset, disposition: "inline", expires_in: 300, now: time, **options) }
+
+    first = url_at.call(window_start + 1, stable: true)
+    assert_equal first, url_at.call(window_start + 299, stable: true)
+    assert_not_equal first, url_at.call(window_start + 300, stable: true)
+
+    query = Rack::Utils.parse_query(URI(first).query)
+    assert_equal "20261105T120000Z", query["X-Amz-Date"]
+    assert_equal "600", query["X-Amz-Expires"]
+    signed_at = Time.strptime(query["X-Amz-Date"], "%Y%m%dT%H%M%S%z")
+    expires_at = signed_at + query["X-Amz-Expires"].to_i
+    # Requested at the very end of the window, the URL still outlives a redirect cached for 300 s.
+    assert_operator expires_at - (window_start + 299), :>=, 300
+
+    unstable = Rack::Utils.parse_query(URI(url_at.call(window_start + 42)).query)
+    assert_equal "300", unstable["X-Amz-Expires"]
+  end
+
   test "download_url presigns a short-lived get with content headers" do
     asset = BundleAsset.new(
       path: "files/report.pdf",

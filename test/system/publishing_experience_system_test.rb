@@ -23,9 +23,24 @@ class PublishingExperienceSystemTest < ApplicationSystemTestCase
     OmniAuth.config.test_mode = false
   end
 
+  # Stands in for bin/publishing-worker, which publishes queued uploads.
+  def with_publishing_worker
+    stop = false
+    worker = Thread.new do
+      until stop
+        Rails.application.executor.wrap { PublishingMaintenance.publish_queued }
+        sleep 0.1
+      end
+    end
+    perform_enqueued_jobs { yield }
+  ensure
+    stop = true
+    worker&.join
+  end
+
   test "protected publishing exposes the password and public selection hides its controls" do
     BundleIngest::ObjectStore.stub :new, @store do
-      perform_enqueued_jobs do
+      with_publishing_worker do
         click_link "New bundle"
         assert_selector 'input[name="access_mode"][value="protected"]', visible: true
         find('input[name="access_mode"][value="protected"]').send_keys(:arrow_right)

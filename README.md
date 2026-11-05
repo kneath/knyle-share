@@ -162,10 +162,15 @@ bin/setup
 - Install gems
 - Prepare the database
 - Clear old logs and temp files
-- Start the Rails server
+- Start the Rails server and publishing worker together
 - Copy `.env.example` to `.env` first if you have not created `.env` yet
 
 The development database lives at `storage/development.sqlite3`.
+
+For subsequent starts, run `bin/dev`. It supervises both processes, forwards
+arguments to the Rails server (for example, `bin/dev -p 3001`), and stops both
+when you press Ctrl-C or either process exits. The worker publishes queued uploads
+against the same development database.
 
 Then open:
 
@@ -269,15 +274,17 @@ A scoped token can:
 
 - Check availability for a slug inside its prefix (`GET /api/v1/bundles/availability`), including whether a bundle already exists there.
 - Create an upload for a slug inside its prefix, including one that replaces an existing bundle (`POST /api/v1/uploads`).
-- Finalize and process any upload whose slug is inside its prefix, whichever token created it (`PUT /api/v1/uploads/:id`, `POST /api/v1/uploads/:id/process`). Finalizing only accepts `byte_size`. The slug, access mode, password, and the other create-time fields can't change after the create-time prefix check.
+- Finalize, process, and check the status of any upload whose slug is inside its prefix, whichever token created it (`PUT /api/v1/uploads/:id`, `POST /api/v1/uploads/:id/process`, `GET /api/v1/uploads/:id`). Finalizing only accepts `byte_size`. The slug, access mode, password, and the other create-time fields can't change after the create-time prefix check.
 - Read metadata for a bundle inside its prefix (`GET /api/v1/bundles/:slug`) and create signed links for a protected one (`POST /api/v1/bundles/:slug/links`).
 - Verify itself with `GET /api/v1/token`.
 
 A scoped token can't:
 
 - Check availability for, or create an upload for, a slug outside its prefix. These requests return `403 Forbidden` with a JSON error, whether or not that slug exists.
-- Read, link, finalize, or process anything outside its prefix. These requests return the same `404 Not Found` (`Bundle not found` or `Upload not found`) as a bundle or upload that doesn't exist, so it can't tell which slugs or upload ids exist outside its prefix.
+- Read, link, finalize, process, or check the status of anything outside its prefix. These requests return the same `404 Not Found` (`Bundle not found` or `Upload not found`) as a bundle or upload that doesn't exist, so it can't tell which slugs or upload ids exist outside its prefix.
 - List, disable, delete, re-password, or revoke links for bundles, or manage API tokens. Those actions exist only in the admin interface, which requires a signed-in GitHub session and ignores API tokens. The API has no list or delete endpoints for any token.
+
+`POST /api/v1/uploads/:id/process` publishes in the background when the request sends `Prefer: respond-async`. It answers `202 Accepted` with the upload's `status` (`queued` or `processing`), and the client polls `GET /api/v1/uploads/:id` until `status` is `ready` (the response then includes `bundle`) or `failed` (with `error_message`). Without that header, the request publishes the bundle before answering `201 Created` with `bundle`, as older CLIs expect.
 
 `GET /api/v1/token` verifies a bearer token and returns its `slug_prefix` (`null` for unrestricted tokens) without looking up a bundle. The CLI uses this endpoint during login, so scoped tokens can sign in too. Update the CLI before logging in with a scoped token.
 
@@ -367,8 +374,10 @@ only its digest is stored. Expiring links provide temporary password-free access
 Changing a password, replacing files, changing visibility, or revoking access
 invalidates previous links and sessions.
 
-The CLI displays byte progress in interactive terminals and can resume
-publication after an interrupted processing request:
+The CLI displays byte progress in interactive terminals. After the upload, the
+server publishes the bundle in the background and the CLI waits for it, checking
+every two seconds. If publishing fails or the CLI is interrupted, resume it
+without uploading again:
 
 ```sh
 knyle-share resume UPLOAD_ID

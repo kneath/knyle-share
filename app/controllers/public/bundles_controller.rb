@@ -33,9 +33,9 @@ module Public
             if @entry_asset.has_prerendered_markdown?
               @entry_asset.rendered_html
             else
-              markdown_body = read_bundle_asset(@entry_asset)
-              measure_server_timing("bundle-markdown-render") do
-                BundleMarkdownRenderer.render(markdown_body)
+              # Missing or from an older renderer: render once and keep it.
+              rendered_markdown_for(@entry_asset).tap do |html|
+                @entry_asset.update_columns(rendered_html: html, rendered_html_version: BundleMarkdownRenderer::VERSION)
               end
             end
           render :markdown
@@ -258,7 +258,7 @@ module Public
         @pdf_url = inline_asset_url(@entry_asset)
         render :pdf_display
       elsif %w[.md .markdown].include?(File.extname(@entry_asset.path).downcase) && storage.render_markdown_inline?(@entry_asset)
-        @rendered_markdown = BundleMarkdownRenderer.render(read_bundle_asset(@entry_asset))
+        @rendered_markdown = rendered_markdown_for(@entry_asset)
         render :markdown
       else
         render :single_download
@@ -312,7 +312,8 @@ module Public
         asset,
         disposition: "inline",
         expires_in: storage.public_asset_redirect_ttl_seconds,
-        response_cache_control: bundle_asset_response_cache_control
+        response_cache_control: bundle_asset_response_cache_control,
+        stable: @bundle.public_access?
       )
     end
 

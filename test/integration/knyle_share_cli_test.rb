@@ -13,10 +13,12 @@ class KnyleShareCliTest < ActiveSupport::TestCase
   class FakeCliApiServer
     attr_reader :requests, :uploads
 
-    def initialize(expected_token:, existing_slug: nil, include_validity: true)
+    def initialize(expected_token:, existing_slug: nil, include_validity: true, async_publish: false, publish_failure: nil)
       @expected_token = expected_token
       @existing_slug = existing_slug
       @include_validity = include_validity
+      @async_publish = async_publish
+      @publish_failure = publish_failure
       @requests = []
       @uploads = {}
       @next_upload_id = 1
@@ -40,7 +42,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
 
     private
 
-    attr_reader :expected_token, :existing_slug, :include_validity
+    attr_reader :expected_token, :existing_slug, :include_validity, :async_publish, :publish_failure
 
     def port
       @server.addr[1]
@@ -167,26 +169,25 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       elsif method == "POST" && (match = path.match(%r{\A/api/v1/uploads/(\d+)/process\z}))
         upload_id = match[1].to_i
         upload = uploads.fetch(upload_id)
-        slug = upload.dig(:params, "slug")
 
-        write_json(socket, 201, {
-          id: upload_id,
-          slug:,
-          source_kind: upload.dig(:params, "source_kind"),
-          access_mode: upload.dig(:params, "access_mode"),
-          replace_existing: upload.dig(:params, "replace_existing"),
-          original_filename: upload.dig(:params, "original_filename"),
-          ingest_key: upload.fetch(:ingest_key),
-          status: "ready",
-          byte_size: upload.fetch(:finalized_byte_size),
-          bundle: {
-            slug:,
-            title: slug.tr("-", " ").split.map(&:capitalize).join(" "),
-            presentation_kind: presentation_kind_for(upload),
-            content_revision: upload.dig(:params, "replace_existing") ? 2 : 1,
-            public_url: "https://share.example.test/#{slug}"
-          }
-        })
+        if async_publish && headers["prefer"].to_s.include?("respond-async")
+          upload[:status_polls] = 0
+          write_json(socket, 202, upload_payload(upload_id, status: "queued"))
+        else
+          write_json(socket, 201, upload_payload(upload_id, status: "ready").merge(bundle: bundle_payload(upload)))
+        end
+      elsif method == "GET" && (match = path.match(%r{\A/api/v1/uploads/(\d+)\z}))
+        upload_id = match[1].to_i
+        upload = uploads.fetch(upload_id)
+        upload[:status_polls] += 1
+
+        if publish_failure
+          write_json(socket, 200, upload_payload(upload_id, status: "failed").merge(error_message: publish_failure))
+        elsif upload[:status_polls] < 2
+          write_json(socket, 200, upload_payload(upload_id, status: "processing"))
+        else
+          write_json(socket, 200, upload_payload(upload_id, status: "ready").merge(bundle: bundle_payload(upload)))
+        end
       elsif method == "POST" && (match = path.match(%r{\A/api/v1/bundles/([^/]+)/links\z}))
         slug = match[1]
         params = JSON.parse(body)
@@ -201,6 +202,32 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       else
         write_json(socket, 404, { error: "Not found" })
       end
+    end
+
+    def upload_payload(upload_id, status:)
+      upload = uploads.fetch(upload_id)
+      {
+        id: upload_id,
+        slug: upload.dig(:params, "slug"),
+        source_kind: upload.dig(:params, "source_kind"),
+        access_mode: upload.dig(:params, "access_mode"),
+        replace_existing: upload.dig(:params, "replace_existing"),
+        original_filename: upload.dig(:params, "original_filename"),
+        ingest_key: upload.fetch(:ingest_key),
+        status:,
+        byte_size: upload.fetch(:finalized_byte_size)
+      }
+    end
+
+    def bundle_payload(upload)
+      slug = upload.dig(:params, "slug")
+      {
+        slug:,
+        title: slug.tr("-", " ").split.map(&:capitalize).join(" "),
+        presentation_kind: presentation_kind_for(upload),
+        content_revision: upload.dig(:params, "replace_existing") ? 2 : 1,
+        public_url: "https://share.example.test/#{slug}"
+      }
     end
 
     def presentation_kind_for(upload)
@@ -235,6 +262,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
       {
         200 => "OK",
         201 => "Created",
+        202 => "Accepted",
         401 => "Unauthorized",
         404 => "Not Found"
       }.fetch(status)
@@ -296,6 +324,56 @@ class KnyleShareCliTest < ActiveSupport::TestCase
         assert_equal false, upload.dig(:params, "replace_existing")
         assert_equal File.binread(path), upload.fetch(:direct_body)
         assert_equal File.size(path), upload.fetch(:finalized_byte_size)
+      end
+    end
+  end
+
+  test "share waits for servers that publish in the background" do
+    with_fake_server(async_publish: true) do |server|
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "field-notes.md")
+        File.write(path, "# Field Notes\n")
+
+        stdout, stderr, status = run_cli(path, "--public", "--json", env: cli_env(server))
+
+        assert_predicate status, :success?, stderr
+        payload = JSON.parse(stdout)
+        assert_equal "field-notes", payload["slug"]
+        assert_equal "https://share.example.test/field-notes", payload["share_url"]
+
+        process = server.requests.find { |request| request[:path] == "/api/v1/uploads/1/process" }
+        assert_equal "respond-async", process[:headers]["prefer"]
+        assert_equal 2, server.requests.count { |request| request[:method] == "GET" && request[:path] == "/api/v1/uploads/1" }
+      end
+    end
+  end
+
+  test "share reports a background publishing failure with the resume command" do
+    with_fake_server(async_publish: true, publish_failure: "Archive is too large. Upload at most 256 MB.") do |server|
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "field-notes.md")
+        File.write(path, "# Field Notes\n")
+
+        _stdout, stderr, status = run_cli(path, "--public", env: cli_env(server))
+
+        assert_not_predicate status, :success?
+        assert_match "publishing did not finish: Archive is too large. Upload at most 256 MB.", stderr
+        assert_match "knyle-share resume 1", stderr
+      end
+    end
+  end
+
+  test "share still works with servers that publish during the request" do
+    with_fake_server do |server|
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "field-notes.md")
+        File.write(path, "# Field Notes\n")
+
+        stdout, stderr, status = run_cli(path, "--public", "--json", env: cli_env(server))
+
+        assert_predicate status, :success?, stderr
+        assert_equal "field-notes", JSON.parse(stdout)["slug"]
+        assert_not server.requests.any? { |request| request[:method] == "GET" && request[:path] == "/api/v1/uploads/1" }
       end
     end
   end
@@ -628,11 +706,19 @@ class KnyleShareCliTest < ActiveSupport::TestCase
 
   private
 
-  def with_fake_server(existing_slug: nil, include_validity: true)
-    server = FakeCliApiServer.new(expected_token: "test-token", existing_slug:, include_validity:).start
+  def with_fake_server(existing_slug: nil, include_validity: true, **options)
+    server = FakeCliApiServer.new(expected_token: "test-token", existing_slug:, include_validity:, **options).start
     yield server
   ensure
     server&.stop
+  end
+
+  def cli_env(server)
+    {
+      "KNYLE_SHARE_ADMIN_URL" => server.base_url,
+      "KNYLE_SHARE_API_TOKEN" => "test-token",
+      "KNYLE_SHARE_PUBLISH_POLL_INTERVAL" => "0.01"
+    }
   end
 
   def run_cli(*args, env:)

@@ -226,6 +226,84 @@ class AdminApiTest < ActionDispatch::IntegrationTest
     assert_empty BundleUpload.all
   end
 
+  test "publishes in the background when the client prefers an async response" do
+    upload = create_upload!(slug: "kb-weekly-report")
+    markdown = "# Weekly Report"
+    upload.update!(byte_size: markdown.bytesize)
+    upload.mark_staged!
+    async_headers = scoped_headers.merge("Prefer" => "respond-async")
+
+    post "/api/v1/uploads/#{upload.id}/process", headers: async_headers
+
+    assert_response :accepted
+    assert_equal "respond-async", response.headers["Preference-Applied"]
+    assert_equal "queued", JSON.parse(response.body)["status"]
+    assert_nil JSON.parse(response.body)["bundle"]
+    assert_empty Bundle.all
+
+    get "/api/v1/uploads/#{upload.id}", headers: scoped_headers
+    assert_response :success
+    assert_equal "no-store", response.headers["Cache-Control"]
+    assert_equal "queued", JSON.parse(response.body)["status"]
+
+    post "/api/v1/uploads/#{upload.id}/process", headers: async_headers
+    assert_response :accepted
+
+    fake_store = fake_object_store(
+      upload.ingest_key => { body: markdown, content_type: "text/markdown", byte_size: markdown.bytesize }
+    )
+    BundleIngest::ObjectStore.stub :new, fake_store do
+      PublishingMaintenance.run
+    end
+
+    get "/api/v1/uploads/#{upload.id}", headers: scoped_headers
+    body = JSON.parse(response.body)
+    assert_equal "ready", body["status"]
+    assert_equal "kb-weekly-report", body.dig("bundle", "slug")
+    assert_match %r{kb-weekly-report\.share\.lvh\.me}, body.dig("bundle", "public_url")
+
+    post "/api/v1/uploads/#{upload.id}/process", headers: async_headers
+    assert_response :created
+    assert_equal "kb-weekly-report", JSON.parse(response.body).dig("bundle", "slug")
+  end
+
+  test "upload status reports why a background publish failed, and processing again re-queues it" do
+    upload = create_upload!(slug: "kb-weekly-report")
+    upload.update!(status: "failed", error_message: "Archive is too large. Upload at most 256 MB.")
+
+    get "/api/v1/uploads/#{upload.id}", headers: scoped_headers
+    assert_equal "failed", JSON.parse(response.body)["status"]
+    assert_equal "Archive is too large. Upload at most 256 MB.", JSON.parse(response.body)["error_message"]
+
+    post "/api/v1/uploads/#{upload.id}/process", headers: scoped_headers.merge("Prefer" => "respond-async")
+    assert_response :accepted
+    assert_equal "queued", upload.reload.status
+    assert_nil upload.error_message
+  end
+
+  test "a canceled upload can't be queued for background publishing" do
+    upload = create_upload!(slug: "kb-weekly-report")
+    upload.update!(status: "canceled")
+
+    post "/api/v1/uploads/#{upload.id}/process", headers: scoped_headers.merge("Prefer" => "respond-async")
+
+    assert_response :conflict
+    assert_equal "canceled", upload.reload.status
+  end
+
+  test "upload status is scoped like every other upload endpoint" do
+    kyles_upload = create_upload!(slug: "field-notes")
+
+    get "/api/v1/uploads/#{kyles_upload.id}", headers: scoped_headers
+    assert_not_found_for_scope("Upload not found")
+
+    get "/api/v1/uploads/#{kyles_upload.id + 1000}", headers: scoped_headers
+    assert_not_found_for_scope("Upload not found")
+
+    get "/api/v1/uploads/#{kyles_upload.id}", headers: @headers
+    assert_response :success
+  end
+
   test "slug-scoped tokens can check, upload, and process bundles inside their prefix" do
     upload_url_store = Class.new do
       def presign_put(key:, content_type:, expires_in: 15.minutes)
@@ -582,6 +660,10 @@ class AdminApiTest < ActionDispatch::IntegrationTest
         @objects = objects.transform_values(&:dup)
       end
 
+      def any?(prefix:)
+        list(prefix:).any?
+      end
+
       def list(prefix:)
         objects
           .sort
@@ -601,6 +683,11 @@ class AdminApiTest < ActionDispatch::IntegrationTest
         objects.fetch(key).fetch(:body)
       end
 
+      def download(key:, to:)
+        File.binwrite(to, read(key:))
+        to
+      end
+
       def write(key:, body:, content_type:)
         body = body.read if body.respond_to?(:read)
         objects[key] = {
@@ -618,6 +705,10 @@ class AdminApiTest < ActionDispatch::IntegrationTest
 
       def delete(key:)
         objects.delete(key)
+      end
+
+      def delete_many(keys:)
+        keys.each { |key| delete(key:) }
       end
 
       def presign_put(key:, content_type:, expires_in: 15.minutes)

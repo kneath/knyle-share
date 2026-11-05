@@ -40,4 +40,46 @@ class BundleIngestObjectStoreTest < ActiveSupport::TestCase
     assert_equal "knyle-share-test/uploads/abc/Notes%20100%25%20done%3F%2Br%C3%A9sum%C3%A9.md", captured[:copy_source]
     assert_equal "bundles/1/notes.md", captured[:key]
   end
+
+  test "delete_many sends one DeleteObjects request per 1,000 keys" do
+    batches = []
+    s3_client = Object.new
+    s3_client.define_singleton_method(:delete_objects) do |bucket:, delete:|
+      batches << delete.fetch(:objects).map { |object| object.fetch(:key) }
+      Struct.new(:errors).new([])
+    end
+
+    keys = (1..2_500).map { |index| "bundles/1/file-#{index}" }
+    BundleIngest::ObjectStore.new(bucket: "knyle-share-test", s3_client:).delete_many(keys:)
+
+    assert_equal [1_000, 1_000, 500], batches.map(&:size)
+    assert_equal keys, batches.flatten
+  end
+
+  test "delete_many raises when S3 reports keys it could not delete" do
+    s3_client = Object.new
+    s3_client.define_singleton_method(:delete_objects) do |**|
+      Struct.new(:errors).new([Struct.new(:key, :code).new("bundles/1/a.txt", "AccessDenied")])
+    end
+
+    error = assert_raises(Aws::S3::Errors::ServiceError) do
+      BundleIngest::ObjectStore.new(bucket: "knyle-share-test", s3_client:).delete_many(keys: ["bundles/1/a.txt"])
+    end
+
+    assert_match "bundles/1/a.txt (AccessDenied)", error.message
+  end
+
+  test "any? asks S3 for at most one key" do
+    calls = []
+    s3_client = Object.new
+    s3_client.define_singleton_method(:list_objects_v2) do |**options|
+      calls << options
+      Struct.new(:contents).new(options[:prefix] == "uploads/site/" ? [Struct.new(:key).new("uploads/site/index.html")] : [])
+    end
+    store = BundleIngest::ObjectStore.new(bucket: "knyle-share-test", s3_client:)
+
+    assert store.any?(prefix: "uploads/site/")
+    assert_not store.any?(prefix: "uploads/empty/")
+    assert_equal [1, 1], calls.map { |options| options[:max_keys] }
+  end
 end

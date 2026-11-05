@@ -65,8 +65,15 @@ module KnyleShare
       )
     end
 
+    # Asks the server to publish in the background. Servers that support it
+    # answer 202 and the caller polls #upload; older servers ignore the
+    # preference and answer 201 with the published bundle.
     def process_upload(id:)
-      request_json(:post, "/api/v1/uploads/#{id}/process")
+      request_json(:post, "/api/v1/uploads/#{id}/process", headers: { "Prefer" => "respond-async" })
+    end
+
+    def upload(id:)
+      request_json(:get, "/api/v1/uploads/#{id}")
     end
 
     def bundle(slug:)
@@ -129,10 +136,11 @@ module KnyleShare
 
     attr_reader :admin_url, :api_token
 
-    def request_json(method, path, params: nil, body: nil)
+    def request_json(method, path, params: nil, body: nil, headers: {})
       uri = build_uri(path, params:)
       request = request_class_for(method).new(uri)
       request["Authorization"] = "Bearer #{api_token}"
+      headers.each { |name, value| request[name] = value }
 
       if body
         request["Content-Type"] = "application/json"
