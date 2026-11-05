@@ -55,6 +55,12 @@ module BundleIngest
       client.get_object(bucket:, key:).body.read
     end
 
+    # Streams the object to a local file instead of holding it in memory.
+    def download(key:, to:)
+      client.get_object(bucket:, key:, response_target: to)
+      to
+    end
+
     def write(key:, body:, content_type:)
       client.put_object(
         bucket:,

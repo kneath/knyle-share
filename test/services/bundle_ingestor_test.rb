@@ -82,6 +82,10 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_equal 300, bundle.byte_size
     assert_equal %w[assets/app.css index.html], bundle.assets.order(:path).pluck(:path)
     assert_nil bundle.assets.find_by!(path: "index.html").rendered_html
+
+    archive = store.objects.fetch(bundle.archive_storage_key).fetch(:body)
+    assert_equal archive.bytesize, bundle.archive_byte_size
+    assert_equal({ "assets/app.css" => "body { color: red; }", "index.html" => "<h1>Review</h1>" }, read_tar_gz(archive))
   end
 
   test "publishes a tar gz directory upload into extracted bundle assets" do
@@ -115,6 +119,11 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert_equal %w[assets/app.css index.html], bundle.assets.order(:path).pluck(:path)
     assert store.objects.key?(bundle.assets.find_by!(path: "index.html").storage_key)
     assert store.objects.key?(bundle.assets.find_by!(path: "assets/app.css").storage_key)
+    assert_equal "<h1>Archive Site</h1>", store.objects.fetch(bundle.assets.find_by!(path: "index.html").storage_key).fetch(:body)
+
+    # The download is the uploaded archive itself, byte for byte.
+    assert_equal archive_body, store.objects.fetch(bundle.archive_storage_key).fetch(:body)
+    assert_equal archive_body.bytesize, bundle.archive_byte_size
   end
 
   test "replacement preserves analytics while revoking prior access grants" do
@@ -270,6 +279,11 @@ class BundleIngestorTest < ActiveSupport::TestCase
         objects.fetch(key).fetch(:body)
       end
 
+      def download(key:, to:)
+        File.binwrite(to, read(key:))
+        to
+      end
+
       def write(key:, body:, content_type:)
         body = body.read if body.respond_to?(:read)
         objects[key] = {
@@ -285,6 +299,14 @@ class BundleIngestorTest < ActiveSupport::TestCase
         objects.delete(key)
       end
     end.new(objects)
+  end
+
+  def read_tar_gz(archive)
+    files = {}
+    Zlib::GzipReader.wrap(StringIO.new(archive)) do |gzip|
+      Gem::Package::TarReader.new(gzip) { |tar| tar.each { |entry| files[entry.full_name] = entry.read } }
+    end
+    files
   end
 
   def build_tar_gz(files)

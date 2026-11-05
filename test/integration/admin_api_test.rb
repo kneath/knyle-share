@@ -601,6 +601,11 @@ class AdminApiTest < ActionDispatch::IntegrationTest
         objects.fetch(key).fetch(:body)
       end
 
+      def download(key:, to:)
+        File.binwrite(to, read(key:))
+        to
+      end
+
       def write(key:, body:, content_type:)
         body = body.read if body.respond_to?(:read)
         objects[key] = {

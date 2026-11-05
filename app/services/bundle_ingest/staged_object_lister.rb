@@ -4,13 +4,16 @@ module BundleIngest
   class StagedObjectLister
     class Error < StandardError; end
 
-    def self.call(bundle_upload:, object_store:)
-      new(bundle_upload:, object_store:).call
+    def self.call(bundle_upload:, object_store:, work_dir:)
+      new(bundle_upload:, object_store:, work_dir:).call
     end
 
-    def initialize(bundle_upload:, object_store:)
+    # work_dir holds an uploaded archive and its extracted files until the
+    # caller has published them.
+    def initialize(bundle_upload:, object_store:, work_dir:)
       @bundle_upload = bundle_upload
       @object_store = object_store
+      @work_dir = work_dir
     end
 
     def call
@@ -30,14 +33,29 @@ module BundleIngest
           content_type: object.content_type,
           byte_size: object.byte_size,
           checksum: object.checksum,
-          body: nil
+          local_path: nil
         )
       end.sort_by(&:path)
     end
 
+    # The uploaded .tar.gz for an archive directory upload, or nil.
+    def archive_object
+      return @archive_object if defined?(@archive_object)
+      return @archive_object = nil unless bundle_upload.source_kind == "directory"
+
+      @archive_object =
+        if object_store.list(prefix: directory_prefix).any?
+          nil
+        else
+          object_store
+            .list(prefix: normalized_ingest_key)
+            .find { |object| object.key == normalized_ingest_key && archive_key?(object.key) }
+        end
+    end
+
     private
 
-    attr_reader :bundle_upload, :object_store
+    attr_reader :bundle_upload, :object_store, :work_dir
 
     def staged_objects
       prefix = bundle_upload.source_kind == "directory" ? directory_prefix : normalized_ingest_key
@@ -50,24 +68,20 @@ module BundleIngest
     end
 
     def archive_upload?
-      return false unless bundle_upload.source_kind == "directory"
-
       archive_object.present?
     end
 
+    # Checks the stored size before downloading anything, so an oversized
+    # upload is refused without touching memory or disk.
     def archive_entries
-      BundleIngest::ArchiveExtractor.call(body: object_store.read(key: archive_object.key))
-    end
+      if archive_object.byte_size > BundleIngest::ArchiveExtractor::MAX_ARCHIVE_BYTES
+        raise BundleIngest::ArchiveExtractor::Error, "Archive is too large. Upload at most 256 MB."
+      end
 
-    def archive_object
-      @archive_object ||= begin
-        if object_store.list(prefix: directory_prefix).any?
-          nil
-        else
-          object_store
-            .list(prefix: normalized_ingest_key)
-            .find { |object| object.key == normalized_ingest_key && archive_key?(object.key) }
-        end
+      archive_path = object_store.download(key: archive_object.key, to: File.join(work_dir, "upload.tar.gz"))
+      extracted_dir = FileUtils.mkdir_p(File.join(work_dir, "extracted")).first
+      File.open(archive_path, "rb") do |archive|
+        BundleIngest::ArchiveExtractor.call(io: archive, directory: extracted_dir)
       end
     end
 

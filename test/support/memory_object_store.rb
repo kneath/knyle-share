@@ -20,6 +20,11 @@ class MemoryObjectStore
     @objects.fetch(key).fetch(:body)
   end
 
+  def download(key:, to:)
+    File.binwrite(to, read(key:))
+    to
+  end
+
   def copy(source_key:, destination_key:)
     before_copy&.call
     raise IOError, "Storage temporarily unavailable" if fail_writes
