@@ -15,6 +15,7 @@ Rails.application.routes.draw do
       post "logout", to: "sessions#destroy", as: :logout
       namespace :api do
         namespace :v1 do
+          get "token", to: "tokens#show"
           get "bundles/availability", to: "bundles#availability"
           get "bundles/:slug", to: "bundles#show", as: :bundle
           post "bundles/:slug/links", to: "bundle_links#create", as: :bundle_links

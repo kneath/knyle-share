@@ -55,7 +55,7 @@ module KnyleShare
       api_token = options[:api_token] || prompt_for_secret("API token")
 
       client = Client.new(admin_url:, api_token:)
-      client.availability(slug: "knyle-share-auth-check")
+      client.verify_token
 
       config_path = config_store.save(admin_url:, api_token:)
       stdout.puts "Saved CLI configuration to #{config_path}."
