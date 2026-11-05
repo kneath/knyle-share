@@ -1,5 +1,19 @@
 module Admin
   class SessionsController < BaseController
+    # OmniAuth's own failure keys, plus the errors GitHub sends back to the
+    # callback. The message comes from the query string, so anything else is
+    # shown generically rather than echoed onto the login page.
+    KNOWN_FAILURES = %w[
+      access_denied
+      application_suspended
+      authenticity_error
+      csrf_detected
+      failed_to_connect
+      invalid_credentials
+      redirect_uri_mismatch
+      timeout
+    ].freeze
+
     def create
       auth = request.env["omniauth.auth"]
 
@@ -21,7 +35,7 @@ module Admin
     end
 
     def failure
-      message = params[:message].to_s.humanize.presence || "Unknown error"
+      message = KNOWN_FAILURES.include?(params[:message].to_s) ? params[:message].to_s.humanize : "Unknown error"
       redirect_to(installation.claimed? ? admin_login_path : admin_setup_path, alert: "GitHub sign-in failed: #{message}")
     end
 
@@ -55,6 +69,7 @@ module Admin
     def start_admin_session!
       reset_session
       session[:admin_github_uid] = installation.admin_github_uid
+      session[:admin_signed_in_at] = Time.current.to_i
     end
   end
 end

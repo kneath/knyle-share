@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_04_000100) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_05_000100) do
   create_table "api_tokens", force: :cascade do |t|
     t.string "label", null: false
     t.string "token_digest", null: false
@@ -142,6 +142,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_04_000100) do
     t.datetime "updated_at", null: false
     t.integer "access_revision", default: 1, null: false
     t.index ["bundle_id"], name: "index_viewer_sessions_on_bundle_id"
+    t.index ["expires_at"], name: "index_viewer_sessions_on_expires_at"
     t.index ["token_digest"], name: "index_viewer_sessions_on_token_digest", unique: true
   end
 

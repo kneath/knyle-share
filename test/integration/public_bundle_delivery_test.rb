@@ -624,6 +624,75 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "app-rendered pages carry a content security policy with a script nonce" do
+    with_stubbed_storage("field-notes.md" => "# Heading\n\nHello public bundle.") do
+      get "http://field-notes.share.lvh.me/"
+    end
+
+    assert_response :success
+    policy = response.headers["Content-Security-Policy"]
+    assert_match(/script-src 'self' 'nonce-[^']+'/, policy)
+    assert_match(/object-src 'none'/, policy)
+    assert_match(/frame-ancestors 'self'/, policy)
+    nonce = policy[/'nonce-([^']+)'/, 1]
+    assert_includes response.body, %(<script type="importmap" data-turbo-track="reload" nonce="#{nonce}">)
+  end
+
+  test "uploaded static sites are served without the app's content security policy" do
+    with_stubbed_storage("index.html" => "<!doctype html><script>window.ok = true</script>") do
+      get "http://design-review.share.lvh.me/"
+    end
+
+    assert_response :success
+    assert_includes response.body, "window.ok = true"
+    assert_nil response.headers["Content-Security-Policy"]
+  end
+
+  test "viewer cookies set before the __Host- prefix keep working and move to the new name" do
+    legacy_name = "bundle_access_#{@protected_download.id}"
+    host_name = "__Host-#{legacy_name}"
+
+    with_stubbed_storage("private-brief.pdf" => "%PDF-1.7 mock") do
+      post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+      assert cookies[legacy_name].present?
+
+      with_host_cookie_prefix("__Host-") do
+        get "http://private-brief.share.lvh.me/"
+        assert_response :success
+        assert_match "Download file", response.body
+        assert cookies[host_name].present?
+        assert cookies[legacy_name].blank?
+
+        get "http://private-brief.share.lvh.me/"
+        assert_response :success
+        assert_match "Download file", response.body
+
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+        assert Array(response.headers["Set-Cookie"]).any? { |cookie| cookie.start_with?("#{host_name}=") }
+      end
+    end
+  end
+
+  test "signed link tokens stay out of request logs and redirect breadcrumbs" do
+    token = BundleAccessLink.generate(bundle: @protected_download, expires_in: 1.day)
+    signature = token.split("--").last
+    payloads = []
+    subscriber = ActiveSupport::Notifications.subscribe(/action_controller\z/) do |*, payload|
+      payloads << payload.slice(:params, :path, :location).inspect
+    end
+
+    begin
+      get "http://share.lvh.me/private-brief", params: { access: token }
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    assert_response :redirect
+    assert_includes response.location, signature
+    assert payloads.any? { |payload| payload.include?("[FILTERED]") }
+    assert payloads.none? { |payload| payload.include?(signature) }, payloads.join("\n")
+  end
+
   private
 
   def with_stubbed_storage(contents)
@@ -675,5 +744,13 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     BundleStorage.stub :new, fake_storage do
       yield fake_storage
     end
+  end
+
+  def with_host_cookie_prefix(prefix)
+    previous = Rails.configuration.x.host_cookie_prefix
+    Rails.configuration.x.host_cookie_prefix = prefix
+    yield
+  ensure
+    Rails.configuration.x.host_cookie_prefix = previous
   end
 end

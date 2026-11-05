@@ -101,6 +101,8 @@ module Public
         request_path: request.path
       )
 
+      # Uploaded sites bring their own scripts and styles, so the app's policy doesn't apply.
+      request.content_security_policy = nil
       render html: fetched_asset.fetch(:body).html_safe, layout: false, content_type: fetched_asset.fetch(:content_type)
     end
 
@@ -120,8 +122,11 @@ module Public
       )
     end
 
+    # Legacy routes carry the slug in the path; subdomain routes take it from
+    # the host. Never read it from the query string, or ?slug= could render
+    # one bundle under another bundle's origin.
     def bundle_slug
-      slug = params[:slug].presence || PublicBundleRouting.slug_from_host(host: request.host, public_host:)
+      slug = request.path_parameters[:slug].presence || PublicBundleRouting.slug_from_host(host: request.host, public_host:)
       raise ActiveRecord::RecordNotFound, "Bundle not found" if slug.blank?
 
       slug

@@ -203,6 +203,29 @@ class AdminApiTest < ActionDispatch::IntegrationTest
     assert_match %r{\Ahttps?://private-brief\.share\.lvh\.me/\?access=}, link["url"]
   end
 
+  test "rejects upload filenames that contain a path" do
+    post "/api/v1/uploads",
+      params: { upload: upload_attributes(slug: "kb-weekly-report").merge(original_filename: "../../bundles/1/secret.png") },
+      headers: scoped_headers
+
+    assert_response :unprocessable_entity
+    assert_match(/Original filename must be a file name, not a path/, JSON.parse(response.body)["error"])
+    assert_empty BundleUpload.all
+  end
+
+  test "rejects null-byte upload filenames before accessing object storage" do
+    BundleIngest::ObjectStore.stub :new, -> { flunk "Invalid uploads must not access object storage" } do
+      post "/api/v1/uploads",
+        params: { upload: upload_attributes(slug: "kb-weekly-report").merge(original_filename: "bad\u0000.md") },
+        headers: scoped_headers,
+        as: :json
+    end
+
+    assert_response :unprocessable_entity
+    assert_match(/Original filename must be a file name, not a path/, response.parsed_body["error"])
+    assert_empty BundleUpload.all
+  end
+
   test "slug-scoped tokens can check, upload, and process bundles inside their prefix" do
     upload_url_store = Class.new do
       def presign_put(key:, content_type:, expires_in: 15.minutes)

@@ -12,6 +12,19 @@ class BundleUploadTest < ActiveSupport::TestCase
     assert_includes upload.errors[:password_digest], "must be set for protected uploads"
   end
 
+  test "requires the original filename to be a plain file name" do
+    [ "../../bundles/secret.png", "nested/file.md", "back\\slash.md", "..", ".", "line\nbreak.md", "nul\u0000.md" ].each do |name|
+      upload = build_upload(original_filename: name)
+
+      assert_not upload.valid?, name.inspect
+      assert_includes upload.errors[:original_filename], "must be a file name, not a path"
+    end
+
+    [ "field-notes.md", "Summer in the Sierra.tar.gz", "résumé (final).pdf", "..hidden", ".env.example" ].each do |name|
+      assert build_upload(original_filename: name).valid?, name.inspect
+    end
+  end
+
   test "rejects reserved slugs" do
     upload = build_upload(slug: "api")
 

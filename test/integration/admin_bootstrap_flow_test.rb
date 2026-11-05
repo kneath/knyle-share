@@ -102,6 +102,18 @@ class AdminBootstrapFlowTest < ActionDispatch::IntegrationTest
     assert_select "a[href='/auth/github']", 0
   end
 
+  test "GitHub sign-in failures show known reasons and hide anything else" do
+    Installation.current.claim_from_auth!(github_auth(uid: "12345", login: "kneath"))
+
+    get "/auth/failure", params: { message: "access_denied" }
+    assert_redirected_to "/login"
+    assert_equal "GitHub sign-in failed: Access denied", flash[:alert]
+
+    get "/auth/failure", params: { message: "your_account_is_locked_visit_evil_example" }
+    assert_redirected_to "/login"
+    assert_equal "GitHub sign-in failed: Unknown error", flash[:alert]
+  end
+
   test "GitHub sign-in cannot be started with a GET" do
     OmniAuth.config.test_mode = false
 

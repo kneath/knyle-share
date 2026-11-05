@@ -20,5 +20,6 @@ class PublishingMaintenance
       end
     end
     StorageCleanup.where("next_attempt_at IS NULL OR next_attempt_at <= ?", Time.current).find_each(&:perform!)
+    ViewerDataPruner.run
   end
 end

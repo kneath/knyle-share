@@ -2,6 +2,10 @@ module Admin
   class BaseController < ApplicationController
     layout "admin"
 
+    # Cookie-store sessions can't be revoked from the server, so a stolen
+    # admin cookie would otherwise work until secret_key_base rotates.
+    ADMIN_SESSION_LIFETIME = 14.days
+
     helper_method :installation, :admin_signed_in?
 
     private
@@ -11,7 +15,9 @@ module Admin
     end
 
     def admin_signed_in?
-      installation.claimed? && session[:admin_github_uid] == installation.admin_github_uid
+      installation.claimed? &&
+        session[:admin_github_uid] == installation.admin_github_uid &&
+        Time.zone.at(session[:admin_signed_in_at].to_i) > ADMIN_SESSION_LIFETIME.ago
     end
 
     def require_admin!

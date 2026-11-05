@@ -66,6 +66,22 @@ class AdminBundleManagementTest < ActionDispatch::IntegrationTest
     OmniAuth.config.test_mode = false
   end
 
+  test "admin sessions expire after the session lifetime" do
+    travel Admin::BaseController::ADMIN_SESSION_LIFETIME - 1.minute do
+      get admin_bundles_url(host: "admin.lvh.me")
+      assert_response :success
+    end
+
+    travel Admin::BaseController::ADMIN_SESSION_LIFETIME + 1.minute do
+      get admin_bundles_url(host: "admin.lvh.me")
+      assert_redirected_to "/login"
+
+      get "/auth/github/callback"
+      follow_redirect!
+      assert_response :success
+    end
+  end
+
   test "bundle index renders real records" do
     get admin_bundles_url(host: "admin.lvh.me")
 

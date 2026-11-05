@@ -21,8 +21,12 @@ module KnyleShare
 
     def save(admin_url:, api_token:)
       FileUtils.mkdir_p(File.dirname(path))
-      File.write(path, JSON.pretty_generate({ admin_url:, api_token: }) + "\n")
-      File.chmod(0o600, path)
+      # Create the file owner-only, and tighten an existing one before the
+      # token is written, so it's never readable by other users.
+      File.open(path, File::WRONLY | File::CREAT | File::TRUNC, 0o600) do |file|
+        file.chmod(0o600)
+        file.write(JSON.pretty_generate({ admin_url:, api_token: }) + "\n")
+      end
       path
     end
 

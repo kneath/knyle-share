@@ -26,7 +26,7 @@
   </main>
 </div>
 
-<script>
+<%= javascript_tag nonce: true do %>
   document.addEventListener("DOMContentLoaded", () => {
     const page = document.querySelector("[data-there-state]");
     const answer = document.querySelector("[data-there-answer]");
@@ -73,4 +73,4 @@
       });
     });
   });
-</script>
+<% end %>
