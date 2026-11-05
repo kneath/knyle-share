@@ -18,6 +18,7 @@ class BundleUpload < ApplicationRecord
   validates :byte_size, numericality: { greater_than_or_equal_to: 0 }
   validates :replace_existing, inclusion: { in: [true, false] }
   validate :password_fits_bcrypt
+  validate :original_filename_is_a_file_name
   validate :slug_is_not_reserved
   validate :protected_upload_requires_password
 
@@ -71,6 +72,16 @@ class BundleUpload < ApplicationRecord
 
   def password_fits_bcrypt
     errors.add(:password, "must be at most 72 bytes") if password && password.bytesize > 72
+  end
+
+  # The filename becomes part of the S3 ingest key and, for single files, the
+  # asset path, so it can't carry directories or control characters.
+  def original_filename_is_a_file_name
+    name = original_filename.to_s
+    return if name.empty?
+    return unless name.match?(%r{[/\\[:cntrl:]]}) || %w[. ..].include?(name)
+
+    errors.add(:original_filename, "must be a file name, not a path")
   end
 
   def slug_is_not_reserved

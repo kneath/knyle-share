@@ -44,7 +44,8 @@ module BundleIngest
     def copy(source_key:, destination_key:)
       client.copy_object(
         bucket:,
-        copy_source: "#{bucket}/#{source_key}",
+        # CopySource is a URL path, so keys need escaping (as Aws::S3::Object#copy_from does).
+        copy_source: "#{bucket}/#{Seahorse::Util.uri_path_escape(source_key)}",
         key: destination_key,
         metadata_directive: "COPY"
       )

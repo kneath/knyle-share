@@ -79,7 +79,7 @@ module Admin
 
         def generate_ingest_key(bundle_upload)
           token = SecureRandom.uuid
-          filename = bundle_upload.original_filename.to_s.presence || "upload.bin"
+          filename = File.basename(bundle_upload.original_filename.to_s.presence || "upload.bin")
           "uploads/#{token}/#{filename}"
         end
 

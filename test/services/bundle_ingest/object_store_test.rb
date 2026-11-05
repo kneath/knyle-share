@@ -28,4 +28,16 @@ class BundleIngestObjectStoreTest < ActiveSupport::TestCase
       assert_kind_of Integer, captured_options[:expires_in]
     end
   end
+
+  test "copy escapes the source key for CopySource" do
+    captured = nil
+    s3_client = Object.new
+    s3_client.define_singleton_method(:copy_object) { |**options| captured = options }
+
+    object_store = BundleIngest::ObjectStore.new(bucket: "knyle-share-test", s3_client:)
+    object_store.copy(source_key: "uploads/abc/Notes 100% done?+résumé.md", destination_key: "bundles/1/notes.md")
+
+    assert_equal "knyle-share-test/uploads/abc/Notes%20100%25%20done%3F%2Br%C3%A9sum%C3%A9.md", captured[:copy_source]
+    assert_equal "bundles/1/notes.md", captured[:key]
+  end
 end
