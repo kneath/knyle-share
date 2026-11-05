@@ -1,6 +1,6 @@
 require "test_helper"
 
-class MarkdownRenderCacheTest < ActionDispatch::IntegrationTest
+class BundleRenderCacheTest < ActionDispatch::IntegrationTest
   setup do
     BundleUniqueViewer.delete_all
     BundleView.delete_all
@@ -26,6 +26,27 @@ class MarkdownRenderCacheTest < ActionDispatch::IntegrationTest
 
   teardown do
     Rails.cache = @previous_cache
+  end
+
+  test "small static-site pages are read from storage once" do
+    site = Bundle.create!(slug: "private-site", title: "Private Site", source_kind: "directory", presentation_kind: "static_site", access_mode: "protected",
+      password: "river maple lantern", status: "active", entry_path: "index.html")
+    site.assets.create!(path: "index.html", storage_key: "site/index.html", content_type: "text/html", byte_size: 30, checksum: "abc")
+    site.assets.create!(path: "huge.html", storage_key: "site/huge.html", content_type: "text/html", byte_size: 2.megabytes, checksum: "def")
+    host! "private-site.share.lvh.me"
+
+    BundleStorage.stub :new, @storage do
+      post "/access", params: { password: "river maple lantern" }
+      2.times do
+        get "/", headers: { "If-None-Match" => "different" }
+        assert_response :success
+        assert_includes response.body, "Heading for site/index.html"
+        assert_match(/private/, response.headers["Cache-Control"])
+      end
+      2.times { get "/huge.html", headers: { "Sec-Fetch-Site" => "same-origin" } }
+    end
+
+    assert_equal ["site/index.html", "site/huge.html", "site/huge.html"], @reads
   end
 
   test "file listing previews render a markdown file once" do
