@@ -111,6 +111,37 @@ class BundleIngestorTest < ActiveSupport::TestCase
     assert(store.objects.keys.none? { |key| key.start_with?("bundles/uploads/#{upload.id}/") })
   end
 
+  test "publishing many files writes assets in bulk and keeps asset_count right" do
+    files = (1..500).to_h { |index| ["uploads/u-bulk/site/page-#{index}.html", { body: "<p>#{index}</p>", content_type: "text/html", byte_size: 10 }] }
+    upload = BundleUpload.create!(slug: "bulk-site", source_kind: "directory", original_filename: "site", access_mode: "public",
+      replace_existing: false, ingest_key: "uploads/u-bulk/site", byte_size: 5_000)
+    statements = 0
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      statements += 1 if payload[:sql].match?(/\A(INSERT|UPDATE|DELETE)/) && payload[:sql].include?("bundle_assets")
+    end
+
+    begin
+      BundleIngestor.new(bundle_upload: upload, object_store: fake_store(files)).call
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    bundle = Bundle.find_by!(slug: "bulk-site")
+    assert_operator statements, :<=, 3
+    assert_equal 500, bundle.asset_count
+    assert_equal 500, bundle.assets.count
+
+    replacement = BundleUpload.create!(slug: "bulk-site", source_kind: "directory", original_filename: "site", access_mode: "public",
+      replace_existing: true, ingest_key: "uploads/u-bulk-2/site", byte_size: 20)
+    BundleIngestor.new(bundle_upload: replacement, object_store: fake_store(
+      "uploads/u-bulk-2/site/index.html" => { body: "<h1>New</h1>", content_type: "text/html", byte_size: 10 },
+      "uploads/u-bulk-2/site/about.html" => { body: "<h1>About</h1>", content_type: "text/html", byte_size: 10 }
+    )).call
+
+    assert_equal 2, bundle.reload.asset_count
+    assert_equal %w[about.html index.html], bundle.assets.order(:path).pluck(:path)
+  end
+
   test "publishes a directory upload as a static site" do
     upload = BundleUpload.create!(
       slug: "design-review",

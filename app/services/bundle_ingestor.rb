@@ -54,8 +54,7 @@ class BundleIngestor
       old_keys = current ? current.assets.pluck(:storage_key) + [current.archive_storage_key] : []
       bundle = prepare_bundle!(existing_bundle: current, classification:, staged_entries:)
       bundle.update!(archive_storage_key: archive_key, archive_byte_size: archive_size)
-      bundle.assets.destroy_all
-      copied_assets.each { |asset| asset.bundle = bundle; asset.save! }
+      replace_assets!(bundle, copied_assets)
       bundle_upload.update!(status: "ready", published_bundle_id: bundle.id, error_message: nil)
       cleanup = StorageCleanup.schedule!(old_keys + staged_entries.map(&:source_key) + [bundle_upload.ingest_key], label: "Published #{bundle.slug}")
       @result = Result.new(bundle:, bundle_upload:, classification:, replacing_existing: existing.present?)
@@ -190,6 +189,21 @@ class BundleIngestor
     Integer(ENV.fetch("PUBLISH_TRANSFER_CONCURRENCY", DEFAULT_TRANSFER_CONCURRENCY)).clamp(1, 32)
   rescue ArgumentError, TypeError
     DEFAULT_TRANSFER_CONCURRENCY
+  end
+
+  ASSET_INSERT_BATCH_SIZE = 500
+
+  # Swaps a bundle's assets with bulk statements instead of a SELECT, INSERT,
+  # and counter UPDATE per file, which held SQLite's write lock for seconds
+  # on large bundles. Paths are already unique (the extractor and S3 keys
+  # guarantee it), and the unique index still backs that up.
+  def replace_assets!(bundle, assets)
+    BundleAsset.where(bundle_id: bundle.id).delete_all
+    rows = assets.map do |asset|
+      asset.attributes.except("id", "bundle_id", "created_at", "updated_at").merge("bundle_id" => bundle.id)
+    end
+    rows.each_slice(ASSET_INSERT_BATCH_SIZE) { |batch| BundleAsset.insert_all!(batch) }
+    bundle.update_columns(asset_count: rows.size)
   end
 
   def protected_password_digest
