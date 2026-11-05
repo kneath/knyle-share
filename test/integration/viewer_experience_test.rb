@@ -119,6 +119,47 @@ class ViewerExperienceTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "formatted password routes share the per-IP limit" do
+    with_rack_attack_store do
+      10.times do |index|
+        post index.even? ? "/access" : "/access.html",
+          params: { password: "wrong-password" },
+          env: { "REMOTE_ADDR" => "192.0.2.17" }
+        assert_response :unprocessable_entity
+      end
+
+      ["/access", "/access.html", "/access.json"].each do |path|
+        post path, params: { password: "test-password" }, env: { "REMOTE_ADDR" => "192.0.2.17" }
+        assert_response :too_many_requests
+        assert_equal "300", response.headers["Retry-After"]
+      end
+      assert_empty @bundle.viewer_sessions
+    end
+  end
+
+  test "formatted password routes share the per-bundle limit across addresses" do
+    with_rack_attack_store do
+      50.times do |index|
+        post index.even? ? "/access" : "/access.html",
+          params: { password: "wrong-password" },
+          env: { "REMOTE_ADDR" => "192.0.2.#{index + 1}" }
+        assert_response :unprocessable_entity
+      end
+
+      ["/access", "/access.html", "/access.json"].each do |path|
+        post path, params: { password: "test-password" }, env: { "REMOTE_ADDR" => "198.51.100.1" }
+        assert_response :too_many_requests
+        assert_equal "3600", response.headers["Retry-After"]
+      end
+
+      host! "share.lvh.me"
+      post "/viewer-experience/access.html", params: { password: "test-password" }, env: { "REMOTE_ADDR" => "198.51.100.2" }
+      assert_response :too_many_requests
+      assert_equal "3600", response.headers["Retry-After"]
+      assert_empty @bundle.viewer_sessions
+    end
+  end
+
   test "password throttling caps attempts per bundle across many addresses" do
     with_rack_attack_store do
       app = Rack::Attack.new(->(_) { [200, {}, ["ok"]] })

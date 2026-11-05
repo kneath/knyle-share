@@ -21,10 +21,11 @@ class Rack::Attack
       return unless post?
 
       public_host = ENV.fetch("PUBLIC_HOST", "share.lvh.me")
-      if path == "/access" && PublicBundleRouting.bundle_host?(host:, public_host:)
+      # Rails accepts optional format suffixes; they must use the same counters.
+      if path.match?(%r{\A/access(?:\.[^/]+)?\z}) && PublicBundleRouting.bundle_host?(host:, public_host:)
         PublicBundleRouting.slug_from_host(host:, public_host:)
       elsif host == public_host
-        path[%r{\A/([^/]+)/access\z}, 1]
+        path[%r{\A/([^/]+)/access(?:\.[^/]+)?\z}, 1]
       end
     end
   end
