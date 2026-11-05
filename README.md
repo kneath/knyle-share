@@ -307,7 +307,7 @@ RubyGems commands directly:
 
 ```sh
 gem build knyle-share.gemspec
-gem install ./knyle-share-0.1.0.gem
+gem install ./knyle-share-0.2.0.gem
 ```
 
 For development, install a symlink back to the checkout:

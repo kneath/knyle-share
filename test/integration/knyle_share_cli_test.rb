@@ -697,7 +697,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
 
       specification = Gem::Package.new(built_gem).spec
       assert_equal "knyle-share", specification.name
-      assert_equal Gem::Version.new("0.1.0"), specification.version
+      assert_equal Gem::Version.new("0.2.0"), specification.version
       assert_equal Gem::Requirement.new(">= 3.2"), specification.required_ruby_version
       assert_equal ["rack"], specification.runtime_dependencies.map(&:name)
       assert_equal [Gem::Requirement.new("~> 3.0")], specification.runtime_dependencies.map(&:requirement)
