@@ -1,110 +1,104 @@
 <% content_for :title, "API Tokens · Knyle Share" %>
-
-<div class="page">
-  <%= render "admin/shared/header" %>
-
-  <main>
-    <div class="container">
-      <div class="page-title">
-        <h1>API Tokens <span class="count"><%= @api_tokens.size %></span></h1>
-        <p class="text-muted mt-1">
-          Use API tokens for the CLI and direct API access. Tokens are shown only once when they are created.
-        </p>
-      </div>
-
-      <% if @issued_token.present? %>
-        <div class="generated-secret">
-          <div class="detail-label">New token</div>
-          <%= render "shared/copy_field", id: "issued-token", label: "API token", value: @issued_token, button: "Copy token" %>
-          <p class="field-note mt-1">Store this now. Only the token digest is kept after this page load.</p>
-        </div>
-      <% end %>
-
-      <div class="detail-section">
-        <h2>Create Token</h2>
-
-        <div class="detail-copy">
-          <p class="text-muted">
-            Give each token a short label so it is clear which machine, workflow, or CLI setup it belongs to.
-          </p>
-        </div>
-
-        <%= form_with model: @new_api_token, url: admin_api_tokens_path, method: :post, class: "stack-form" do |form| %>
-          <div class="field-group">
-            <%= form.label :label, "Label" %>
-            <%= form.text_field :label, class: "text-input", autocomplete: "off", spellcheck: false, placeholder: "MacBook CLI" %>
-            <% if form.object.errors[:label].any? %>
-              <p class="field-error"><%= form.object.errors[:label].to_sentence %></p>
-            <% else %>
-              <p class="field-note">Example: <code>MacBook CLI</code>, <code>Render backup script</code>, or <code>CI upload</code>.</p>
-            <% end %>
-          </div>
-
-          <div class="field-group">
-            <%= form.label :slug_prefix, "Slug prefix (optional)" %>
-            <%= form.text_field :slug_prefix, class: "text-input", autocomplete: "off", spellcheck: false, placeholder: "kb-" %>
-            <% if form.object.errors[:slug_prefix].any? %>
-              <p class="field-error"><%= form.object.errors.full_messages_for(:slug_prefix).to_sentence %></p>
-            <% else %>
-              <p class="field-note">Limit this token to bundles whose slug starts with the prefix, like <code>kb-</code>. Leave blank to allow every bundle.</p>
-            <% end %>
-          </div>
-
-          <div class="button-row">
-            <button class="btn btn-primary" type="submit">Create API token</button>
-          </div>
-        <% end %>
-      </div>
-
-      <section class="detail-section"><h2>Connect the CLI</h2><p class="text-muted mt-1">After installing the CLI, run <code>knyle-share login --admin-url <%= request.base_url %></code>. Paste your token at the hidden prompt.</p><p class="field-note mt-1">Then share a file with <code>knyle-share ./notes.md --protected --generate-password</code>. Keep tokens out of command arguments and shell history.</p><%= link_to "CLI installation instructions", "https://github.com/kneath/knyle-share#cli", target: "_blank", rel: "noreferrer" %></section>
-      <div class="detail-section">
-        <h2>Issued Tokens</h2>
-
-        <% if @api_tokens.any? %>
-          <ul class="token-list">
-            <% @api_tokens.each do |api_token| %>
-              <li class="token-row">
-                <div class="token-copy">
-                  <div class="token-heading">
-                    <span class="bundle-name"><%= api_token.label %></span>
-                    <span class="badge <%= api_token.active? ? "badge-active" : "badge-disabled" %>">
-                      <%= api_token.active? ? "Active" : "Revoked" %>
-                    </span>
-                  </div>
-
-                  <div class="token-meta">
-                    <% if api_token.slug_scoped? %>
-                      <span>Only <code><%= api_token.slug_prefix %>*</code> bundles</span>
-                    <% else %>
-                      <span>All bundles</span>
-                    <% end %>
-                    <span>Created <%= time_ago_in_words(api_token.created_at) %> ago</span>
-                    <% if api_token.last_used_at.present? %>
-                      <span>Last used <%= time_ago_in_words(api_token.last_used_at) %> ago</span>
-                    <% else %>
-                      <span>Never used</span>
-                    <% end %>
-                    <% if api_token.revoked_at.present? %>
-                      <span>Revoked <%= time_ago_in_words(api_token.revoked_at) %> ago</span>
-                    <% end %>
-                  </div>
-                </div>
-
-                <% if api_token.active? %>
-                  <%= form_with url: admin_revoke_api_token_path(api_token), method: :patch, class: "inline-form", data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Revoke #{api_token.label}? Its CLI and integrations will stop working." } do %>
-                    <button class="btn btn-secondary" type="submit">Revoke</button>
-                  <% end %>
-                <% end %>
-              </li>
-            <% end %>
-          </ul>
-        <% else %>
-          <div class="empty-state">
-            <h3>No API tokens yet</h3>
-            <p class="text-muted mt-1">Create one here before wiring up the CLI or making direct API requests.</p>
-          </div>
-        <% end %>
-      </div>
-    </div>
-  </main>
+<div class="page-title">
+  <h1>API tokens <span class="count"><%= @api_tokens.size %></span></h1>
 </div>
+<p class="page-lede">Use API tokens for the CLI and direct API access. Tokens are shown only once when they are created.</p>
+
+<% if @issued_token.present? %>
+  <div class="generated-secret mb-2">
+    <div class="stat-label">New token</div>
+    <%= render "shared/copy_field", id: "issued-token", label: "API token", value: @issued_token, button: "Copy token" %>
+    <p class="field-note">Store this now. Only the token digest is kept after this page load.</p>
+  </div>
+<% end %>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Create token</h2>
+  </div>
+  <div class="panel-body">
+    <%= form_with model: @new_api_token, url: admin_api_tokens_path, method: :post, class: "token-form" do |form| %>
+      <div class="field-group">
+        <%= form.label :label, "Label" %>
+        <%= form.text_field :label, class: "text-input", autocomplete: "off", spellcheck: false, placeholder: "MacBook CLI" %>
+        <% if form.object.errors[:label].any? %>
+          <p class="field-error"><%= form.object.errors[:label].to_sentence %></p>
+        <% else %>
+          <p class="field-note">Which machine, workflow, or CLI setup it belongs to.</p>
+        <% end %>
+      </div>
+
+      <div class="field-group">
+        <%= form.label :slug_prefix, "Slug prefix (optional)" %>
+        <%= form.text_field :slug_prefix, class: "text-input", autocomplete: "off", spellcheck: false, placeholder: "kb-" %>
+        <% if form.object.errors[:slug_prefix].any? %>
+          <p class="field-error"><%= form.object.errors.full_messages_for(:slug_prefix).to_sentence %></p>
+        <% else %>
+          <p class="field-note">Limit it to slugs starting with this prefix. Blank allows every bundle.</p>
+        <% end %>
+      </div>
+
+      <div class="button-row">
+        <button class="btn btn-primary" type="submit">Create API token</button>
+      </div>
+    <% end %>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Issued tokens</h2>
+  </div>
+  <% if @api_tokens.any? %>
+    <ul class="token-list">
+      <% @api_tokens.each do |api_token| %>
+        <li class="token-row">
+          <div class="token-copy">
+            <div class="token-heading">
+              <span><%= api_token.label %></span>
+              <span class="status <%= api_token.active? ? "status-active" : "status-revoked" %>"><%= api_token.active? ? "Active" : "Revoked" %></span>
+            </div>
+            <div class="token-meta">
+              <% if api_token.slug_scoped? %>
+                <span>Only <code><%= api_token.slug_prefix %>*</code> bundles</span>
+              <% else %>
+                <span>All bundles</span>
+              <% end %>
+              <span>Created <%= time_ago_in_words(api_token.created_at) %> ago</span>
+              <% if api_token.last_used_at.present? %>
+                <span>Last used <%= time_ago_in_words(api_token.last_used_at) %> ago</span>
+              <% else %>
+                <span>Never used</span>
+              <% end %>
+              <% if api_token.revoked_at.present? %>
+                <span>Revoked <%= time_ago_in_words(api_token.revoked_at) %> ago</span>
+              <% end %>
+            </div>
+          </div>
+
+          <% if api_token.active? %>
+            <%= form_with url: admin_revoke_api_token_path(api_token), method: :patch, class: "inline-form", data: { controller: "confirm", action: "submit->confirm#submit", confirm_message_value: "Revoke #{api_token.label}? Its CLI and integrations will stop working." } do %>
+              <button class="btn btn-secondary btn-small" type="submit">Revoke</button>
+            <% end %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <div class="empty-state">
+      <h3>No API tokens yet</h3>
+      <p>Create one here before wiring up the CLI or making direct API requests.</p>
+    </div>
+  <% end %>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Connect the CLI</h2>
+    <%= link_to "Installation instructions", "https://github.com/kneath/knyle-share#cli", target: "_blank", rel: "noreferrer", class: "field-note" %>
+  </div>
+  <div class="panel-body">
+    <p>After installing the CLI, run <code>knyle-share login --admin-url <%= request.base_url %></code> and paste your token at the hidden prompt.</p>
+    <p>Then share a file with <code>knyle-share ./notes.md --protected --generate-password</code>. Keep tokens out of command arguments and shell history.</p>
+  </div>
+</section>

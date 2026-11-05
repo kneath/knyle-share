@@ -102,14 +102,6 @@ class Bundle < ApplicationRecord
     ACCESS_MODE_LABELS.fetch(access_mode)
   end
 
-  def status_badge_class
-    active? ? "badge-active" : "badge-disabled"
-  end
-
-  def access_badge_class
-    public_access? ? "badge-public" : "badge-protected"
-  end
-
   def toggle_status!
     update!(status: active? ? "disabled" : "active")
   end

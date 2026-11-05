@@ -12,8 +12,20 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body>
-    <%= render "shared/flash" %>
-    <%= yield %>
+  <body class="admin">
+    <% if controller_name.in?(%w[logins setup]) %>
+      <%= render "shared/flash" %>
+      <%= yield %>
+    <% else %>
+      <div class="shell">
+        <%= render "admin/shared/sidebar" %>
+        <main class="shell-main">
+          <%= render "shared/flash" %>
+          <div class="content <%= content_for(:content_class) %>">
+            <%= yield %>
+          </div>
+        </main>
+      </div>
+    <% end %>
   </body>
 </html>

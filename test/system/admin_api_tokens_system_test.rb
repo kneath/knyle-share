@@ -33,7 +33,7 @@ class AdminApiTokensSystemTest < ApplicationSystemTestCase
     visit "http://admin.lvh.me:4010/auth/github/callback"
     assert_current_path "/bundles"
 
-    click_link "API Tokens"
+    click_link "API tokens"
     assert_current_path "/api-tokens"
 
     fill_in "Label", with: "MacBook CLI"
@@ -53,7 +53,7 @@ class AdminApiTokensSystemTest < ApplicationSystemTestCase
 
   test "admin creates a token limited to a slug prefix" do
     visit "http://admin.lvh.me:4010/auth/github/callback"
-    click_link "API Tokens"
+    click_link "API tokens"
 
     fill_in "Label", with: "Knylebot"
     fill_in "Slug prefix (optional)", with: "kb-"
