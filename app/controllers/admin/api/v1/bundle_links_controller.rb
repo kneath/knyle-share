@@ -3,10 +3,9 @@ module Admin
     module V1
       class BundleLinksController < BaseController
         before_action :mark_api_token_used!
-        before_action -> { authorize_slug!(params[:slug]) }
 
         def create
-          bundle = Bundle.find_by!(slug: params[:slug])
+          bundle = find_bundle!(params[:slug])
           raise ActiveRecord::RecordNotFound, "Bundle not found" unless bundle.protected_access?
 
           preset = BundleAccessLink::PRESETS[params[:expires_in].to_s]

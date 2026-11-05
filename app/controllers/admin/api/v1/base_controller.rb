@@ -25,15 +25,32 @@ module Admin
           current_api_token&.update_column(:last_used_at, Time.current)
         end
 
-        # Renders 403 when the token's slug prefix excludes this slug. Run it
-        # before any lookup so a scoped token learns nothing about bundles
-        # outside its prefix.
+        # Renders 403 when the token's slug prefix excludes this slug. Use it
+        # only where the answer depends on the slug alone (availability and
+        # create), never after a lookup, so it can't reveal what exists.
         def authorize_slug!(slug)
           return if current_api_token.permits_slug?(slug)
 
           render json: {
             error: "This API token can only act on bundles whose slug starts with \"#{current_api_token.slug_prefix}\"."
           }, status: :forbidden
+        end
+
+        # Scoped tokens look records up within their prefix, so anything
+        # outside it raises the same not-found error as a missing record.
+        # Unscoped tokens keep the default Active Record lookups.
+        def find_bundle!(slug)
+          return Bundle.find_by!(slug:) unless current_api_token.slug_scoped?
+
+          current_api_token.permitted(Bundle).find_by(slug:) ||
+            raise(ActiveRecord::RecordNotFound, "Bundle not found")
+        end
+
+        def find_bundle_upload!(id)
+          return BundleUpload.find(id) unless current_api_token.slug_scoped?
+
+          current_api_token.permitted(BundleUpload).find_by(id:) ||
+            raise(ActiveRecord::RecordNotFound, "Upload not found")
         end
 
         def bearer_token

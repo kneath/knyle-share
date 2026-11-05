@@ -51,6 +51,14 @@ class ApiToken < ApplicationRecord
     slug.to_s.start_with?(slug_prefix)
   end
 
+  # Narrows a relation with a slug column to the rows this token may act on.
+  def permitted(relation)
+    return relation unless slug_scoped?
+
+    column = "#{relation.connection.quote_table_name(relation.table_name)}.#{relation.connection.quote_column_name("slug")}"
+    relation.where("#{column} LIKE ? ESCAPE '\\'", "#{relation.sanitize_sql_like(slug_prefix)}%")
+  end
+
   def revoke!
     update!(revoked_at: Time.current)
   end
