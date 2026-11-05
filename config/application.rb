@@ -48,6 +48,12 @@ module KnyleShare
 
     config.middleware.insert_before 0, StripForwardedHost
 
+    # Bundle subdomains run uploaded HTML and JS, which can set cookies for the
+    # shared parent domain and shadow ours. Browsers refuse a __Host- cookie
+    # that names a Domain, so the prefix keeps them out. It also requires
+    # Secure, so production (which forces SSL) turns it on.
+    config.x.host_cookie_prefix = ""
+
     # Production sits behind Cloudflare, so the connecting IP Render sees is a
     # Cloudflare edge. Trusting Cloudflare's published ranges lets
     # request.remote_ip resolve to the real client from X-Forwarded-For, while

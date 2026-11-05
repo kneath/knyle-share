@@ -624,6 +624,31 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "viewer cookies set before the __Host- prefix keep working and move to the new name" do
+    legacy_name = "bundle_access_#{@protected_download.id}"
+    host_name = "__Host-#{legacy_name}"
+
+    with_stubbed_storage("private-brief.pdf" => "%PDF-1.7 mock") do
+      post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+      assert cookies[legacy_name].present?
+
+      with_host_cookie_prefix("__Host-") do
+        get "http://private-brief.share.lvh.me/"
+        assert_response :success
+        assert_match "Download file", response.body
+        assert cookies[host_name].present?
+        assert cookies[legacy_name].blank?
+
+        get "http://private-brief.share.lvh.me/"
+        assert_response :success
+        assert_match "Download file", response.body
+
+        post "http://private-brief.share.lvh.me/access", params: { password: "river maple lantern" }
+        assert Array(response.headers["Set-Cookie"]).any? { |cookie| cookie.start_with?("#{host_name}=") }
+      end
+    end
+  end
+
   test "signed link tokens stay out of request logs and redirect breadcrumbs" do
     token = BundleAccessLink.generate(bundle: @protected_download, expires_in: 1.day)
     signature = token.split("--").last
@@ -695,5 +720,13 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     BundleStorage.stub :new, fake_storage do
       yield fake_storage
     end
+  end
+
+  def with_host_cookie_prefix(prefix)
+    previous = Rails.configuration.x.host_cookie_prefix
+    Rails.configuration.x.host_cookie_prefix = prefix
+    yield
+  ensure
+    Rails.configuration.x.host_cookie_prefix = previous
   end
 end

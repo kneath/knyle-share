@@ -34,6 +34,9 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
+  # Session and viewer cookies are host-only and Secure (see config/application.rb).
+  config.x.host_cookie_prefix = "__Host-"
+
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 

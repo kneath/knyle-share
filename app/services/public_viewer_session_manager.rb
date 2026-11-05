@@ -10,12 +10,15 @@ class PublicViewerSessionManager
 
   def find(bundle:)
     raw_token = cookies.signed[cookie_name(bundle)]
+    legacy_token = cookies.signed[legacy_cookie_name(bundle)] if raw_token.blank? && legacy_cookie?(bundle)
+    raw_token ||= legacy_token
     return if raw_token.blank?
 
     viewer_session = bundle.viewer_sessions.find_by(token_digest: digest(raw_token))
     return clear(bundle) if viewer_session.blank? || viewer_session.expires_at <= Time.current
     return clear(bundle) if viewer_session.access_revision != bundle.access_revision
 
+    migrate_legacy_cookie(bundle:, raw_token:, expires_at: viewer_session.expires_at) if legacy_token.present?
     viewer_session
   end
 
@@ -49,11 +52,27 @@ class PublicViewerSessionManager
 
   def clear(bundle)
     cookies.delete(cookie_name(bundle), path: cookie_path(bundle))
+    cookies.delete(legacy_cookie_name(bundle), path: cookie_path(bundle)) if legacy_cookie?(bundle)
     nil
   end
 
   def cookie_name(bundle)
+    "#{Rails.configuration.x.host_cookie_prefix}#{legacy_cookie_name(bundle)}"
+  end
+
+  # Cookies set before the __Host- prefix. Viewers who still have one keep
+  # their access and move to the new name on their next visit.
+  def legacy_cookie_name(bundle)
     "#{COOKIE_PREFIX}_#{bundle.id}"
+  end
+
+  def legacy_cookie?(bundle)
+    cookie_name(bundle) != legacy_cookie_name(bundle)
+  end
+
+  def migrate_legacy_cookie(bundle:, raw_token:, expires_at:)
+    write_cookie(bundle:, raw_token:, expires_at:)
+    cookies.delete(legacy_cookie_name(bundle), path: cookie_path(bundle))
   end
 
   def cookie_path(bundle)
