@@ -69,6 +69,7 @@ module Admin
     def start_admin_session!
       reset_session
       session[:admin_github_uid] = installation.admin_github_uid
+      session[:admin_signed_in_at] = Time.current.to_i
     end
   end
 end
