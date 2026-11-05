@@ -25,6 +25,17 @@ module Admin
           current_api_token&.update_column(:last_used_at, Time.current)
         end
 
+        # Renders 403 when the token's slug prefix excludes this slug. Run it
+        # before any lookup so a scoped token learns nothing about bundles
+        # outside its prefix.
+        def authorize_slug!(slug)
+          return if current_api_token.permits_slug?(slug)
+
+          render json: {
+            error: "This API token can only act on bundles whose slug starts with \"#{current_api_token.slug_prefix}\"."
+          }, status: :forbidden
+        end
+
         def bearer_token
           authorization = request.authorization.to_s
           scheme, token = authorization.split(" ", 2)

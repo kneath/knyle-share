@@ -6,6 +6,8 @@ module Admin
       class UploadsController < BaseController
         before_action :mark_api_token_used!
         before_action :set_bundle_upload, only: %i[update process_upload]
+        before_action -> { authorize_slug!(params.dig(:upload, :slug)) }, only: :create
+        before_action -> { authorize_slug!(@bundle_upload.slug) }, only: %i[update process_upload]
 
         def create
           bundle_upload = BundleUpload.new(upload_params)

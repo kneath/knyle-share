@@ -3,15 +3,25 @@ require "securerandom"
 
 class ApiToken < ApplicationRecord
   TOKEN_LENGTH = 40
+  SLUG_PREFIX_FORMAT = /\A(?:[a-z0-9]+-)+\z/.freeze
+
+  normalizes :slug_prefix, with: ->(value) { value.strip.presence }
 
   validates :label, presence: true
   validates :token_digest, presence: true, uniqueness: true
+  validates :slug_prefix,
+    length: { maximum: 62 },
+    format: {
+      with: SLUG_PREFIX_FORMAT,
+      message: "must be lowercase letters, numbers, and hyphens, ending in a hyphen (like kb-)"
+    },
+    allow_nil: true
 
   scope :active, -> { where(revoked_at: nil) }
 
-  def self.issue!(label:)
+  def self.issue!(label:, slug_prefix: nil)
     plaintext_token = SecureRandom.alphanumeric(TOKEN_LENGTH)
-    record = create!(label:, token_digest: digest(plaintext_token))
+    record = create!(label:, slug_prefix:, token_digest: digest(plaintext_token))
 
     [record, plaintext_token]
   end
@@ -28,6 +38,17 @@ class ApiToken < ApplicationRecord
 
   def active?
     revoked_at.blank?
+  end
+
+  def slug_scoped?
+    slug_prefix.present?
+  end
+
+  # A token without a prefix can act on every bundle.
+  def permits_slug?(slug)
+    return true unless slug_scoped?
+
+    slug.to_s.start_with?(slug_prefix)
   end
 
   def revoke!

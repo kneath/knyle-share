@@ -30,6 +30,30 @@ class AdminApiTokensTest < ActionDispatch::IntegrationTest
     assert_equal [ "MacBook CLI" ], ApiToken.pluck(:label)
   end
 
+  test "admin can create a token limited to a slug prefix" do
+    post admin_api_tokens_url(host: "admin.lvh.me"), params: { api_token: { label: "Knylebot", slug_prefix: "kb-" } }
+
+    assert_response :created
+    assert_match "Only <code>kb-*</code> bundles", response.body
+    assert_equal "kb-", ApiToken.find_by!(label: "Knylebot").slug_prefix
+  end
+
+  test "tokens created without a slug prefix are unrestricted" do
+    post admin_api_tokens_url(host: "admin.lvh.me"), params: { api_token: { label: "MacBook CLI", slug_prefix: "" } }
+
+    assert_response :created
+    assert_match "All bundles", response.body
+    assert_nil ApiToken.find_by!(label: "MacBook CLI").slug_prefix
+  end
+
+  test "admin sees an error for a malformed slug prefix" do
+    post admin_api_tokens_url(host: "admin.lvh.me"), params: { api_token: { label: "Knylebot", slug_prefix: "kb" } }
+
+    assert_response :unprocessable_entity
+    assert_match "Slug prefix must be lowercase letters, numbers, and hyphens, ending in a hyphen", response.body
+    assert_empty ApiToken.all
+  end
+
   test "admin can revoke an existing token" do
     api_token, = ApiToken.issue!(label: "CI upload")
 

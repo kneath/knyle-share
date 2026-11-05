@@ -241,7 +241,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
     end
   end
 
-  test "login stores a verified cli configuration" do
+  test "login stores a verified cli configuration on older servers without the token endpoint" do
     with_fake_server do |server|
       Dir.mktmpdir do |dir|
         config_path = File.join(dir, "cli-config.json")
@@ -255,6 +255,7 @@ class KnyleShareCliTest < ActiveSupport::TestCase
         assert_predicate status, :success?
         assert_equal "", stderr
         assert_match "Saved CLI configuration", stdout
+        assert_equal ["/api/v1/token", "/api/v1/bundles/availability"], server.requests.map { |request| request[:path] }
 
         config = JSON.parse(File.read(config_path))
         assert_equal server.base_url, config["admin_url"]

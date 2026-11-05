@@ -23,6 +23,15 @@ module KnyleShare
       @api_token = api_token.to_s
     end
 
+    def verify_token
+      request_json(:get, "/api/v1/token")
+    rescue ApiError => error
+      raise unless error.status == 404
+
+      # Servers predating token scopes verify credentials through availability.
+      availability(slug: "knyle-share-auth-check")
+    end
+
     def availability(slug:)
       request_json(:get, "/api/v1/bundles/availability", params: { slug: })
     end

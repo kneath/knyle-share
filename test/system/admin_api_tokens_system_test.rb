@@ -50,4 +50,17 @@ class AdminApiTokensSystemTest < ApplicationSystemTestCase
     assert_text "Revoked MacBook CLI."
     assert_text "Revoked"
   end
+
+  test "admin creates a token limited to a slug prefix" do
+    visit "http://admin.lvh.me:4010/auth/github/callback"
+    click_link "API Tokens"
+
+    fill_in "Label", with: "Knylebot"
+    fill_in "Slug prefix (optional)", with: "kb-"
+    click_button "Create API token"
+
+    assert_text "API token created."
+    assert_text "Only kb-* bundles"
+    assert_equal "kb-", ApiToken.find_by!(label: "Knylebot").slug_prefix
+  end
 end

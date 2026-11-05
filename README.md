@@ -258,9 +258,14 @@ Create a token from the admin UI:
 1. Sign in on the admin host.
 2. Open `API Tokens`.
 3. Create a token with a descriptive label.
-4. Copy the plaintext token immediately. It is shown only once.
+4. Optionally set a slug prefix, like `kb-`.
+5. Copy the plaintext token immediately. It is shown only once.
 
 If you lose the plaintext token, revoke it and create a new one. Only the digest is saved in the database.
+
+A token with a slug prefix can only act on bundles whose slug starts with that prefix. Use one for bots and other automation, so a leaked token can't touch the rest of your bundles. Every request that names another slug (availability checks, uploads, replacements, metadata, and signed links) returns `403 Forbidden` with a JSON error, and an upload can only be finalized or processed by a token whose prefix matches the upload's slug. Prefixes use lowercase letters, numbers, and hyphens, and must end in a hyphen. Tokens without a prefix can act on every bundle.
+
+`GET /api/v1/token` verifies a bearer token and returns its `slug_prefix` (`null` for unrestricted tokens) without looking up a bundle. The CLI uses this endpoint during login, so scoped tokens can sign in too. Update the CLI before logging in with a scoped token.
 
 ## CLI
 
