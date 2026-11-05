@@ -154,7 +154,9 @@ module Public
         @bundle.status,
         asset&.id,
         asset&.checksum,
-        asset&.rendered_html_version,
+        # Pages always render with the current renderer (a stale stored render
+        # is replaced), so key on it rather than the asset's stored version.
+        BundleMarkdownRenderer::VERSION,
         asset&.byte_size,
         asset&.content_type
       ]
@@ -202,6 +204,19 @@ module Public
 
     def read_bundle_asset(asset)
       measure_server_timing("bundle-storage-read") { storage.read(asset) }
+    end
+
+    MARKDOWN_CACHE_TTL = 1.week
+
+    # Rendering (mostly sanitizing) a large Markdown file takes seconds, so
+    # cache the HTML. Storage keys change on every publish, so a cached
+    # render can't go stale; access is checked before this is called.
+    def rendered_markdown_for(asset)
+      key = ["bundle-markdown", BundleMarkdownRenderer::VERSION, asset.storage_key, asset.checksum]
+      Rails.cache.fetch(key, expires_in: MARKDOWN_CACHE_TTL) do
+        markdown_body = read_bundle_asset(asset)
+        measure_server_timing("bundle-markdown-render") { BundleMarkdownRenderer.render(markdown_body) }
+      end
     end
 
     def record_bundle_view(bundle:, viewer_session:, access_method:, request_path:)
