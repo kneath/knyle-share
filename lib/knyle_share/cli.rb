@@ -146,11 +146,10 @@ module KnyleShare
           say "Publishing bundle…" unless options[:json]
           client.finalize_upload(id: upload.fetch("id"), byte_size: source.byte_size)
           begin
-            process_result = client.process_upload(id: upload.fetch("id"))
+            bundle = publish_upload(client:, id: upload.fetch("id"), quiet: options[:json])
           rescue Error => error
             raise Error, "File uploaded, but publishing did not finish: #{error.message} Resume without uploading again: knyle-share resume #{upload.fetch('id')}"
           end
-          bundle = process_result.fetch("bundle")
 
           response = {
             "slug" => bundle.fetch("slug"),
@@ -192,10 +191,49 @@ module KnyleShare
       raise Error, "Usage: knyle-share resume UPLOAD_ID [--json]" unless id.to_s.match?(/\A\d+\z/) && argv.empty?
       configuration = config_store.load
       client = Client.new(admin_url: configuration[:admin_url], api_token: configuration[:api_token])
-      bundle = client.process_upload(id:).fetch("bundle")
+      bundle = publish_upload(client:, id:, quiet: json)
       result = { "slug" => bundle.fetch("slug"), "share_url" => bundle.fetch("public_url"), "warning" => "Passwords cannot be retrieved. If you did not save the password, reset it from the admin page." }
       json ? stdout.puts(JSON.pretty_generate(result)) : print_share_summary(result)
       0
+    end
+
+    PUBLISH_POLL_INTERVAL = 2
+    PUBLISH_TIMEOUT = 60 * 60
+
+    # Starts publishing and waits for the bundle, polling the upload while the
+    # server publishes in the background.
+    def publish_upload(client:, id:, quiet:)
+      result = client.process_upload(id:)
+      deadline = monotonic_now + PUBLISH_TIMEOUT
+      announced = false
+
+      loop do
+        return result.fetch("bundle") if result["bundle"]
+
+        case result["status"]
+        when "queued", "processing"
+          raise Error, "The server is still publishing." if monotonic_now > deadline
+
+          unless announced || quiet
+            say "Waiting for the server to finish publishing…"
+            announced = true
+          end
+          sleep publish_poll_interval
+          result = client.upload(id:)
+        else
+          raise Error, result["error_message"] || result["error"] || "Publishing ended with status #{result['status'].inspect}."
+        end
+      end
+    end
+
+    def publish_poll_interval
+      Float(env.fetch("KNYLE_SHARE_PUBLISH_POLL_INTERVAL", PUBLISH_POLL_INTERVAL))
+    rescue ArgumentError, TypeError
+      PUBLISH_POLL_INTERVAL
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
     def default_share_options
