@@ -1,6 +1,7 @@
 module BundleIngest
   class Classifier
     MARKDOWN_EXTENSIONS = %w[.md .markdown].freeze
+    HTML_EXTENSIONS = %w[.html .htm].freeze
 
     def self.call(source_kind:, entries:)
       new(source_kind:, entries:).call
@@ -53,6 +54,14 @@ module BundleIngest
       if MARKDOWN_EXTENSIONS.include?(extension)
         Classification.new(
           presentation_kind: "markdown_document",
+          source_kind: "file",
+          entry_path: entry,
+          paths:
+        )
+      elsif HTML_EXTENSIONS.include?(extension)
+        # A lone HTML page is a one-page site, so serve it rather than offer a download.
+        Classification.new(
+          presentation_kind: "static_site",
           source_kind: "file",
           entry_path: entry,
           paths:

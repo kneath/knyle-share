@@ -41,4 +41,15 @@ class BundleIngest::ClassificationTest < ActiveSupport::TestCase
     assert_equal "single_download", classification.presentation_kind
     assert_equal "archive.zip", classification.entry_path
   end
+
+  test "classifies a single html file as a static site" do
+    classification = BundleIngest::Classifier.call(
+      source_kind: "file",
+      entries: ["Voting.HTML"]
+    )
+
+    assert_equal "static_site", classification.presentation_kind
+    assert_equal "file", classification.source_kind
+    assert_equal "Voting.HTML", classification.entry_path
+  end
 end
