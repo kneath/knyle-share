@@ -679,6 +679,33 @@ class PublicBundleDeliveryTest < ActionDispatch::IntegrationTest
     assert_nil response.headers["Content-Security-Policy"]
   end
 
+  test "a single uploaded html file renders as a page instead of a download card" do
+    bundle = Bundle.create!(
+      slug: "hostname-voting",
+      title: "Hostname Voting",
+      source_kind: "file",
+      presentation_kind: "static_site",
+      access_mode: "public",
+      status: "active",
+      entry_path: "voting.html"
+    )
+    bundle.assets.create!(
+      path: "voting.html",
+      storage_key: "bundles/#{bundle.id}/1/voting.html",
+      content_type: "text/html",
+      byte_size: 64
+    )
+
+    with_stubbed_storage("voting.html" => "<!doctype html><h1>Vote</h1>") do
+      get "http://hostname-voting.share.lvh.me/"
+    end
+
+    assert_response :success
+    assert_equal "text/html", response.media_type
+    assert_includes response.body, "<h1>Vote</h1>"
+    assert_not_includes response.body, "Download file"
+  end
+
   test "viewer cookies set before the __Host- prefix keep working and move to the new name" do
     legacy_name = "bundle_access_#{@protected_download.id}"
     host_name = "__Host-#{legacy_name}"
