@@ -15,7 +15,7 @@ I mostly built this for me, but maybe you'll find it interesting too.
 
 ## Requirements
 
-- Ruby `3.4.2`
+- Ruby `3.4.13`
 - Bundler
 - SQLite 3
 - An AWS S3 bucket for setup validation

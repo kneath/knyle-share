@@ -19,6 +19,7 @@ gem "stimulus-rails"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1"
+gem "omniauth", ">= 2.2.0"
 gem "omniauth-github"
 gem "omniauth-rails_csrf_protection"
 gem "aws-sdk-s3", require: false
