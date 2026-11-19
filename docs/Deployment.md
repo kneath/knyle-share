@@ -19,7 +19,7 @@ If you follow this document in order, you should end with a working deployment t
 | Piece | Current production shape |
 | --- | --- |
 | App server | Rails 8 on Puma |
-| Ruby version | `3.4.2` |
+| Ruby version | `3.4.13` |
 | Database | SQLite on a Render persistent disk |
 | Object storage | Private Amazon S3 bucket |
 | Admin auth | GitHub OAuth app |
